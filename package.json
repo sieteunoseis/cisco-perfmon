@@ -1,0 +1,30 @@
+{
+  "name": "cisco-perfmon",
+  "version": "1.0.0",
+  "description": "A library to pull Perfmon data from Cisco VOS applications via SOAP",
+  "main": "main.js",
+  "scripts": {
+    "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 node ./test/tests.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sieteunoseis/cisco-perfmon.git"
+  },
+  "keywords": [
+    "cisco",
+    "node",
+    "perfmon",
+    "cucm",
+    "vos"
+  ],
+  "author": "Jeremy Worden <jeremy@automate.builders> (https://automate.builders/)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sieteunoseis/cisco-perfmon/issues"
+  },
+  "homepage": "https://github.com/sieteunoseis/cisco-perfmon#readme",
+  "dependencies": {
+    "util": "*",
+    "xml2js": "*"
+  }
+}
