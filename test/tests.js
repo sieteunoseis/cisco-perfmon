@@ -2,9 +2,9 @@ const perfMonService = require("../main");
 
 // Set up new PerfMon service
 let service = new perfMonService(
-  "cucm01-pub.automate.builders",
+  "10.10.20.1",
   "administrator",
-  "h0mel@b"
+  "ciscopsdt"
 );
 
 // Variables to hold our SessionID and our Session Counter

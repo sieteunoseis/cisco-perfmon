@@ -1,9 +1,9 @@
 # Cisco RisPort Library
 
-Simple library to pull Risport70 status from a Cisco CUCM via SOAP.
+Simple library to pull Perfmon stats from a Cisco CUCM via SOAP.
 
-Risport70 information can be found at
-[RisPort70 API Reference](https://developer.cisco.com/docs/sxml/#!risport70-api-reference).
+Perfmon information can be found at
+[PerfMon API Reference](https://developer.cisco.com/docs/sxml/#!perfmon-api-reference).
 
 ## Installation
 
@@ -11,7 +11,7 @@ Using npm:
 
 ```javascript
 npm i -g npm
-npm i --save cisco-risport
+npm i --save cisco-perfmon
 ```
 
 ## Requirements
@@ -30,25 +30,29 @@ NODE_TLS_REJECT_UNAUTHORIZED=0
 
 ## Usage
 
+Note: Rather than use string with backslashes i.e. "\\cucm3\Cisco CallManager\CallsActive", opted to pass these via JSON to the functions. See below:
+
 ```javascript
-const risPortService = require("../main");
+const perfMonService = require("../main");
 
-let service = new risPortService("10.10.20.1", "administrator", "ciscopsdt");
+// Set up new PerfMon service
+let service = new perfMonService(
+  "10.10.20.1",
+  "administrator",
+  "ciscopsdt"
+);
 
+var counterObj = {
+  host: "cucm01-pub",
+  object: "Cisco CallManager",
+  counter: "CallsActive",
+};
+
+console.log("Let's get a description of our counter.");
 service
-  .selectCmDevice(
-    "SelectCmDeviceExt",1000,"Any","","Any","","Name","","Any","Any")
+  .queryCounterDescription(counterObj)
   .then((results) => {
-    console.log("SelectCmDeviceExt Results:", "\n", results);
-  })
-  .catch((error) => {
-    console.log(error);
-  });
-
-service
-  .selectCtiDevice(1000, "Line", "Any", "", "AppId", "", "", "")
-  .then((results) => {
-    console.log("SelectCtiDevice Results:", "\n", results);
+    console.log("queryCounterDescription", results);
   })
   .catch((error) => {
     console.log(error);

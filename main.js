@@ -1,15 +1,6 @@
 const util = require("util");
-const Models = require("./lib/Model");
 const parseString = require("xml2js").parseString;
 const stripPrefix = require("xml2js").processors.stripPrefix;
-
-/**
- * Cisco Perfmon Service
- * This is a service class that uses fetch and promises to pull Perfmon data from Cisco CUCM
- *
- *
- * @class perfMonService
- */
 
 var XML_ADD_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
  <soapenv:Header/>
@@ -92,6 +83,13 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
 </soapenv:Body>
 </soapenv:Envelope>`;
 
+/**
+ * Cisco Perfmon Service
+ * This is a service class that uses fetch and promises to pull Perfmon data from Cisco CUCM
+ *
+ *
+ * @class perfMonService
+ */
 class perfMonService {
   constructor(host, username, password) {
     this._OPTIONS = {
