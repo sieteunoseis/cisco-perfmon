@@ -578,8 +578,6 @@ class perfMonService {
 
     XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
 
-    console.log(XML);
-
     var soapBody = Buffer.from(XML);
     options.body = soapBody;
 
