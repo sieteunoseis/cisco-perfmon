@@ -543,15 +543,15 @@ class perfMonService {
    */
   addCounter(sessionHandle, counter) {
     var XML;
-    var counterStr;
+    var counterStr = '';
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonAddCounter`;
     var server = this._HOST;
 
     if (Array.isArray(counter)) {
-      counterStr = counter.map(
+      counter.forEach(
         (item) =>
-          "<soap:Counter>" +
+        counterStr += "<soap:Counter>" +
           "<soap:Name>" +
           "\\\\" +
           item.host +
@@ -577,6 +577,8 @@ class perfMonService {
     }
 
     XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
+
+    console.log(XML);
 
     var soapBody = Buffer.from(XML);
     options.body = soapBody;
@@ -633,15 +635,15 @@ class perfMonService {
    */
   removeCounter(sessionHandle, counter) {
     var XML;
-    var counterStr;
+    var counterStr = '';
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonRemoveCounter`;
     var server = this._HOST;
 
     if (Array.isArray(counter)) {
-      counterStr = counter.map(
+      counter.forEach(
         (item) =>
-          "<soap:Counter>" +
+        counterStr += "<soap:Counter>" +
           "<soap:Name>" +
           "\\\\" +
           item.host +
