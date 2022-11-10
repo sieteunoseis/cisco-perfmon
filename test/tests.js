@@ -75,7 +75,7 @@ service
 
 console.log("Let's collect some non session counter data.");
 service
-  .collectCounterData("cucm01-pub", "Cisco CallManager")
+  .collectCounterData("cucm01-pub", "Cisco Hunt Pilots")
   .then((results) => {
     console.log("collectCounterData", results);
   })
@@ -99,7 +99,7 @@ console.log(
   "Let's return a list of instances of a PerfMon object on a particular host. Instances of an object can dynamically change. This operation returns the most recent list."
 );
 service
-  .listInstance("cucm01-pub","Partition")
+  .listInstance("cucm01-pub", "Partition")
   .then((results) => {
     console.log("listInstance", results);
   })

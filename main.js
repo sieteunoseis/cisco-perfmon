@@ -131,54 +131,59 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          // console.log(response.body);
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
+            }
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
 
-          if (keyExists(output, "perfmonCollectCounterDataReturn")) {
-            var returnResults =
-              output.Body.perfmonCollectCounterDataResponse
-                .perfmonCollectCounterDataReturn;
-            if (returnResults) {
-              var newOutput;
-              if (Array.isArray(returnResults)) {
-                newOutput = returnResults.map((item) => {
-                  let arr = item.Name.split("\\").filter((element) => element);
-                  return {
+            if (keyExists(output, "perfmonCollectCounterDataReturn")) {
+              var returnResults =
+                output.Body.perfmonCollectCounterDataResponse
+                  .perfmonCollectCounterDataReturn;
+              if (returnResults) {
+                var newOutput;
+                if (Array.isArray(returnResults)) {
+                  newOutput = returnResults.map((item) => {
+                    let arr = item.Name.split("\\").filter(
+                      (element) => element
+                    );
+                    return {
+                      host: arr[0],
+                      object: arr[1],
+                      counter: arr[2],
+                      value: item.Value,
+                      cstatus: item.CStatus,
+                    };
+                  });
+                } else {
+                  let arr = returnResults.Name.split("\\").filter(
+                    (element) => element
+                  );
+                  newOutput = {
                     host: arr[0],
                     object: arr[1],
                     counter: arr[2],
-                    value: item.Value,
-                    cstatus: item.CStatus,
+                    value: returnResults.Value,
+                    cstatus: returnResults.CStatus,
                   };
-                });
+                }
+                resolve(clean(newOutput));
               } else {
-                let arr = returnResults.Name.split("\\").filter(
-                  (element) => element
-                );
-                newOutput = {
-                  host: arr[0],
-                  object: arr[1],
-                  counter: arr[2],
-                  value: returnResults.Value,
-                  cstatus: returnResults.CStatus,
-                };
+                reject(output.Body.Fault);
               }
-              resolve(clean(newOutput));
             } else {
-              reject(output.Body.Fault);
+              resolve({ response: "empty" });
             }
-          } else {
-            reject({ response: "empty" });
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -215,55 +220,60 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          // console.log(response.body);
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
+            }
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
 
-          if (keyExists(output, "perfmonCollectSessionDataReturn")) {
-            var returnResults =
-              output.Body.perfmonCollectSessionDataResponse
-                .perfmonCollectSessionDataReturn;
+            if (keyExists(output, "perfmonCollectSessionDataReturn")) {
+              var returnResults =
+                output.Body.perfmonCollectSessionDataResponse
+                  .perfmonCollectSessionDataReturn;
 
-            if (returnResults) {
-              var newOutput;
-              if (Array.isArray(returnResults)) {
-                newOutput = returnResults.map((item) => {
-                  let arr = item.Name.split("\\").filter((element) => element);
-                  return {
+              if (returnResults) {
+                var newOutput;
+                if (Array.isArray(returnResults)) {
+                  newOutput = returnResults.map((item) => {
+                    let arr = item.Name.split("\\").filter(
+                      (element) => element
+                    );
+                    return {
+                      host: arr[0],
+                      object: arr[1],
+                      counter: arr[2],
+                      value: item.Value,
+                      cstatus: item.CStatus,
+                    };
+                  });
+                } else {
+                  let arr = returnResults.Name.split("\\").filter(
+                    (element) => element
+                  );
+                  newOutput = {
                     host: arr[0],
                     object: arr[1],
                     counter: arr[2],
-                    value: item.Value,
-                    cstatus: item.CStatus,
+                    value: returnResults.Value,
+                    cstatus: returnResults.CStatus,
                   };
-                });
+                }
+                resolve(clean(newOutput));
               } else {
-                let arr = returnResults.Name.split("\\").filter(
-                  (element) => element
-                );
-                newOutput = {
-                  host: arr[0],
-                  object: arr[1],
-                  counter: arr[2],
-                  value: returnResults.Value,
-                  cstatus: returnResults.CStatus,
-                };
+                reject(output.Body.Fault);
               }
-              resolve(clean(newOutput));
             } else {
-              reject(output.Body.Fault);
+              resolve({ response: "empty" });
             }
-          } else {
-            reject({ response: "empty" });
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -300,29 +310,33 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonListCounterReturn")) {
-            var returnResults =
-              output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
-
-            if (returnResults) {
-              resolve(clean(returnResults));
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonListCounterReturn")) {
+              var returnResults =
+                output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
+
+              if (returnResults) {
+                resolve(clean(returnResults));
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -359,29 +373,34 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonListInstanceReturn")) {
-            var returnResults =
-              output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
-
-            if (returnResults) {
-              resolve(clean(returnResults));
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonListInstanceReturn")) {
+              var returnResults =
+                output.Body.perfmonListInstanceResponse
+                  .perfmonListInstanceReturn;
+
+              if (returnResults) {
+                resolve(clean(returnResults));
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -417,29 +436,33 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonOpenSessionReturn")) {
-            var returnResults =
-              output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
-
-            if (returnResults) {
-              resolve(clean(returnResults));
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonOpenSessionReturn")) {
+              var returnResults =
+                output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
+
+              if (returnResults) {
+                resolve(clean(returnResults));
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -475,27 +498,31 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonCloseSessionResponse")) {
-            var returnResults = output.Body.perfmonCloseSessionResponse;
-            if (returnResults) {
-              resolve({ response: "success" });
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonCloseSessionResponse")) {
+              var returnResults = output.Body.perfmonCloseSessionResponse;
+              if (returnResults) {
+                resolve({ response: "success" });
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -561,27 +588,31 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonAddCounterResponse")) {
-            var returnResults = output.Body.perfmonAddCounterResponse;
-            if (returnResults) {
-              resolve({ response: "success" });
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonAddCounterResponse")) {
+              var returnResults = output.Body.perfmonAddCounterResponse;
+              if (returnResults) {
+                resolve({ response: "success" });
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -647,27 +678,31 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonRemoveCounterResponse")) {
-            var returnResults = output.Body.perfmonRemoveCounterResponse;
-            if (returnResults) {
-              resolve({ response: "success" });
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonRemoveCounterResponse")) {
+              var returnResults = output.Body.perfmonRemoveCounterResponse;
+              if (returnResults) {
+                resolve({ response: "success" });
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
@@ -693,14 +728,14 @@ class perfMonService {
     var server = this._HOST;
 
     var counterStr =
-    "<soap:Counter>" +
-    "\\\\" +
-    counter.host +
-    "\\" +
-    counter.object +
-    "\\" +
-    counter.counter +
-    "</soap:Counter>";
+      "<soap:Counter>" +
+      "\\\\" +
+      counter.host +
+      "\\" +
+      counter.object +
+      "\\" +
+      counter.counter +
+      "</soap:Counter>";
 
     XML = util.format(XML_QUERY_COUNTER_ENVELOPE, counterStr);
 
@@ -714,30 +749,34 @@ class perfMonService {
         options
       )
         .then(async (response) => {
-          var data = []; // create an array to save chunked data from server
-          // response.body is a ReadableStream
-          const reader = response.body.getReader();
-          for await (const chunk of readChunks(reader)) {
-            data.push(Buffer.from(chunk));
-          }
-          var buffer = Buffer.concat(data); // create buffer of data
-          let xmlOutput = buffer.toString("binary").trim();
-          let output = await parseXml(xmlOutput);
-
-          // Remove unnecessary keys
-          removeKeys(output, "$");
-
-          if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
-            var returnResults =
-              output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
-
-            if (returnResults) {
-              resolve(clean(returnResults));
-            } else {
-              reject(output.Body.Fault);
+          try {
+            var data = []; // create an array to save chunked data from server
+            // response.body is a ReadableStream
+            const reader = response.body.getReader();
+            for await (const chunk of readChunks(reader)) {
+              data.push(Buffer.from(chunk));
             }
-          } else {
-            reject({ response: "empty" });
+            var buffer = Buffer.concat(data); // create buffer of data
+            let xmlOutput = buffer.toString("binary").trim();
+            let output = await parseXml(xmlOutput);
+
+            // Remove unnecessary keys
+            removeKeys(output, "$");
+
+            if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
+              var returnResults =
+                output.Body.perfmonQueryCounterDescriptionResponse
+                  .perfmonQueryCounterDescriptionReturn;
+              if (returnResults) {
+                resolve(clean(returnResults));
+              } else {
+                reject(output.Body.Fault);
+              }
+            } else {
+              resolve({ response: "empty" });
+            }
+          } catch (e) {
+            reject(e);
           }
         })
         .catch((error) => {
