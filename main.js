@@ -260,7 +260,7 @@ class perfMonService {
                       (element) => element
                     );
 
-                    let instanceArr = string
+                    let instanceArr = arr[1]
                       .split(/[()]+/)
                       .filter(function (e) {
                         return e;
@@ -280,7 +280,7 @@ class perfMonService {
                     (element) => element
                   );
 
-                  let instanceArr = string.split(/[()]+/).filter(function (e) {
+                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                     return e;
                   });
 
