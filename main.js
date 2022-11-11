@@ -155,9 +155,17 @@ class perfMonService {
                     let arr = item.Name.split("\\").filter(
                       (element) => element
                     );
+
+                    let instanceArr = arr[1]
+                      .split(/[()]+/)
+                      .filter(function (e) {
+                        return e;
+                      });
+
                     return {
                       host: arr[0],
-                      object: arr[1],
+                      object: instanceArr[0],
+                      instance: instanceArr[1] ? instanceArr[1] : "",
                       counter: arr[2],
                       value: item.Value,
                       cstatus: item.CStatus,
@@ -167,9 +175,15 @@ class perfMonService {
                   let arr = returnResults.Name.split("\\").filter(
                     (element) => element
                   );
+
+                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                    return e;
+                  });
+
                   newOutput = {
                     host: arr[0],
-                    object: arr[1],
+                    object: instanceArr[0],
+                    instance: instanceArr[1] ? instanceArr[1] : "",
                     counter: arr[2],
                     value: returnResults.Value,
                     cstatus: returnResults.CStatus,
@@ -245,9 +259,17 @@ class perfMonService {
                     let arr = item.Name.split("\\").filter(
                       (element) => element
                     );
+
+                    let instanceArr = string
+                      .split(/[()]+/)
+                      .filter(function (e) {
+                        return e;
+                      });
+
                     return {
                       host: arr[0],
-                      object: arr[1],
+                      object: instanceArr[0],
+                      instance: instanceArr[1] ? instanceArr[1] : "",
                       counter: arr[2],
                       value: item.Value,
                       cstatus: item.CStatus,
@@ -257,9 +279,15 @@ class perfMonService {
                   let arr = returnResults.Name.split("\\").filter(
                     (element) => element
                   );
+
+                  let instanceArr = string.split(/[()]+/).filter(function (e) {
+                    return e;
+                  });
+
                   newOutput = {
                     host: arr[0],
-                    object: arr[1],
+                    object: instanceArr[0],
+                    instance: instanceArr[1] ? instanceArr[1] : "",
                     counter: arr[2],
                     value: returnResults.Value,
                     cstatus: returnResults.CStatus,
@@ -543,7 +571,7 @@ class perfMonService {
    */
   addCounter(sessionHandle, counter) {
     var XML;
-    var counterStr = '';
+    var counterStr = "";
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonAddCounter`;
     var server = this._HOST;
@@ -551,16 +579,17 @@ class perfMonService {
     if (Array.isArray(counter)) {
       counter.forEach(
         (item) =>
-        counterStr += "<soap:Counter>" +
-          "<soap:Name>" +
-          "\\\\" +
-          item.host +
-          "\\" +
-          item.object +
-          "\\" +
-          item.counter +
-          "</soap:Name>" +
-          "</soap:Counter>"
+          (counterStr +=
+            "<soap:Counter>" +
+            "<soap:Name>" +
+            "\\\\" +
+            item.host +
+            "\\" +
+            item.object +
+            "\\" +
+            item.counter +
+            "</soap:Name>" +
+            "</soap:Counter>")
       );
     } else {
       counterStr =
@@ -633,7 +662,7 @@ class perfMonService {
    */
   removeCounter(sessionHandle, counter) {
     var XML;
-    var counterStr = '';
+    var counterStr = "";
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonRemoveCounter`;
     var server = this._HOST;
@@ -641,16 +670,17 @@ class perfMonService {
     if (Array.isArray(counter)) {
       counter.forEach(
         (item) =>
-        counterStr += "<soap:Counter>" +
-          "<soap:Name>" +
-          "\\\\" +
-          item.host +
-          "\\" +
-          item.object +
-          "\\" +
-          item.counter +
-          "</soap:Name>" +
-          "</soap:Counter>"
+          (counterStr +=
+            "<soap:Counter>" +
+            "<soap:Name>" +
+            "\\\\" +
+            item.host +
+            "\\" +
+            item.object +
+            "\\" +
+            item.counter +
+            "</soap:Name>" +
+            "</soap:Counter>")
       );
     } else {
       counterStr =
