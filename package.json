@@ -1,10 +1,10 @@
 {
   "name": "cisco-perfmon",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "A library to pull Perfmon data from Cisco VOS applications via SOAP",
   "main": "main.js",
   "scripts": {
-    "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 node ./test/tests.js"
+    "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=test node ./test/tests.js"
   },
   "repository": {
     "type": "git",
@@ -26,5 +26,9 @@
   "dependencies": {
     "util": "*",
     "xml2js": "*"
+  },
+  "devDependencies": {
+    "dotenv": "*",
+    "envalid": "^8.0.0"
   }
 }
