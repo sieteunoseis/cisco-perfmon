@@ -89,29 +89,43 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
  *
  *
  * @class perfMonService
+ * @param {string} host - The host to collect data from. This is usually the IP address/FQDN of the CUCM publisher.
+ * @param {string} username - The username to authenticate with. This is usually an AXL user. Can leave this blank if using JESSIONSSO cookie.
+ * @param {string} password - The password to authenticate with. This is usually an AXL user. Can leave this blank if using JESSIONSSO cookie.
+ * @param {object} options - Additional headers to add to the request. Useful for adding cookies for SSO sessions.
+ * @returns {object} returns constructor object.
  */
 class perfMonService {
-  constructor(host, username, password) {
+  constructor(host, username, password, options) {
     this._OPTIONS = {
       method: "POST",
       headers: {
-        Authorization:
-          "Basic " + Buffer.from(username + ":" + password).toString("base64"),
+        Authorization: "Basic " + Buffer.from(username + ":" + password).toString("base64"),
         "Content-Type": "text/xml;charset=UTF-8",
+        Connection: "keep-alive",
       },
     };
+
+    // Adds additional headers if they are provided. Useful for adding cookies for SSO sessions
+    if (options) {
+      this._OPTIONS.headers = Object.assign(this._OPTIONS.headers, options);
+    }
+
     this._HOST = host;
   }
   /**
    * Post Fetch using Cisco PerfMon API
    *
    * @collectCounterData
-   var service = new perfMonService();
-   service.collectCounterData().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.collectCounterData().then((results => {
+   *    console.log(results.Results);
+   *   }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} host - The host to collect data from
+   * @param {string} object - The object to collect data about. Example: Cisco CallManager
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   collectCounterData(host, object) {
     var XML;
@@ -125,14 +139,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -145,22 +162,16 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonCollectCounterDataReturn")) {
-              var returnResults =
-                output.Body.perfmonCollectCounterDataResponse
-                  .perfmonCollectCounterDataReturn;
+              var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
               if (returnResults) {
                 var newOutput;
                 if (Array.isArray(returnResults)) {
                   newOutput = returnResults.map((item) => {
-                    let arr = item.Name.split("\\").filter(
-                      (element) => element
-                    );
+                    let arr = item.Name.split("\\").filter((element) => element);
 
-                    let instanceArr = arr[1]
-                      .split(/[()]+/)
-                      .filter(function (e) {
-                        return e;
-                      });
+                    let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                      return e;
+                    });
 
                     return {
                       host: arr[0],
@@ -172,9 +183,7 @@ class perfMonService {
                     };
                   });
                 } else {
-                  let arr = returnResults.Name.split("\\").filter(
-                    (element) => element
-                  );
+                  let arr = returnResults.Name.split("\\").filter((element) => element);
 
                   let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                     return e;
@@ -189,19 +198,24 @@ class perfMonService {
                     cstatus: returnResults.CStatus,
                   };
                 }
-                resolve(clean(newOutput));
+                promiseResults.Results = clean(newOutput);
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -209,12 +223,14 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @collectSessionData
-   var service = new perfMonService();
-   service.collectSessionData().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.collectSessionData().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} SessionHandle - A unique session ID from the client, of type SessionHandleType. The session handle that the perfmonOpenSession request previously opened.
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   collectSessionData(SessionHandle) {
     var XML;
@@ -228,14 +244,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -248,23 +267,17 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonCollectSessionDataReturn")) {
-              var returnResults =
-                output.Body.perfmonCollectSessionDataResponse
-                  .perfmonCollectSessionDataReturn;
+              var returnResults = output.Body.perfmonCollectSessionDataResponse.perfmonCollectSessionDataReturn;
 
               if (returnResults) {
                 var newOutput;
                 if (Array.isArray(returnResults)) {
                   newOutput = returnResults.map((item) => {
-                    let arr = item.Name.split("\\").filter(
-                      (element) => element
-                    );
+                    let arr = item.Name.split("\\").filter((element) => element);
 
-                    let instanceArr = arr[1]
-                      .split(/[()]+/)
-                      .filter(function (e) {
-                        return e;
-                      });
+                    let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                      return e;
+                    });
 
                     return {
                       host: arr[0],
@@ -276,9 +289,7 @@ class perfMonService {
                     };
                   });
                 } else {
-                  let arr = returnResults.Name.split("\\").filter(
-                    (element) => element
-                  );
+                  let arr = returnResults.Name.split("\\").filter((element) => element);
 
                   let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                     return e;
@@ -293,19 +304,24 @@ class perfMonService {
                     cstatus: returnResults.CStatus,
                   };
                 }
-                resolve(clean(newOutput));
+                promiseResults.Results = clean(newOutput);
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -313,12 +329,14 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @listCounter
-   var service = new perfMonService();
-   service.listCounter().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.listCounter().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} host - The host to collect data from.
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   listCounter(host) {
     var XML;
@@ -332,14 +350,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -352,23 +373,27 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonListCounterReturn")) {
-              var returnResults =
-                output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
+              var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
 
               if (returnResults) {
-                resolve(clean(returnResults));
+                promiseResults.Results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -376,12 +401,15 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @listInstance
-   var service = new perfMonService();
-   service.listInstance().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.listInstance().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} host - The host to collect data from.
+   * @param {string} object - The object to collect data about. Example: Cisco CallManager
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   listInstance(host, object) {
     var XML;
@@ -395,14 +423,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -415,24 +446,27 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonListInstanceReturn")) {
-              var returnResults =
-                output.Body.perfmonListInstanceResponse
-                  .perfmonListInstanceReturn;
+              var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
 
               if (returnResults) {
-                resolve(clean(returnResults));
+                promiseResults.Results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -440,12 +474,13 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @openSession
-   var service = new perfMonService();
-   service.openSession().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.openSession().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   openSession() {
     var XML;
@@ -458,14 +493,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -478,23 +516,27 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonOpenSessionReturn")) {
-              var returnResults =
-                output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
+              var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
 
               if (returnResults) {
-                resolve(clean(returnResults));
+                promiseResults.Results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -502,12 +544,14 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @closeSession
-   var service = new perfMonService();
-   service.closeSession().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.closeSession().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} sessionHandle - A unique session ID from the client, of type SessionHandleType. The session handle that the perfmonOpenSession request previously opened.
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   closeSession(sessionHandle) {
     var XML;
@@ -520,14 +564,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -542,19 +589,24 @@ class perfMonService {
             if (keyExists(output, "perfmonCloseSessionResponse")) {
               var returnResults = output.Body.perfmonCloseSessionResponse;
               if (returnResults) {
-                resolve({ response: "success" });
+                promiseResults.Results = { response: "success" };
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -562,12 +614,15 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @addCounter
-   var service = new perfMonService();
-   service.addCounter().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.addCounter().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} sessionHandle - A unique session ID from the client, of type SessionHandleType. The session handle that the perfmonOpenSession request previously opened.
+   * @param {object} counter - The counter to add. Example: Memory
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   addCounter(sessionHandle, counter) {
     var XML;
@@ -577,32 +632,9 @@ class perfMonService {
     var server = this._HOST;
 
     if (Array.isArray(counter)) {
-      counter.forEach(
-        (item) =>
-          (counterStr +=
-            "<soap:Counter>" +
-            "<soap:Name>" +
-            "\\\\" +
-            item.host +
-            "\\" +
-            item.object +
-            "\\" +
-            item.counter +
-            "</soap:Name>" +
-            "</soap:Counter>")
-      );
+      counter.forEach((item) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + item.host + "\\" + item.object + "\\" + item.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
-      counterStr =
-        "<soap:Counter>" +
-        "<soap:Name>" +
-        "\\\\" +
-        counter.host +
-        "\\" +
-        counter.object +
-        "\\" +
-        counter.counter +
-        "</soap:Name>" +
-        "</soap:Counter>";
+      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + counter.object + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
     }
 
     XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
@@ -611,11 +643,13 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
@@ -633,19 +667,24 @@ class perfMonService {
             if (keyExists(output, "perfmonAddCounterResponse")) {
               var returnResults = output.Body.perfmonAddCounterResponse;
               if (returnResults) {
-                resolve({ response: "success" });
+                promiseResults.Results = { response: "success" };
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -653,12 +692,15 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @removeCounter
-   var service = new perfMonService();
-   service.removeCounter().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.removeCounter().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {string} sessionHandle - A unique session ID from the client, of type SessionHandleType. The session handle that the perfmonOpenSession request previously opened.
+   * @param {object} counter - The counter to remove. Example: Memory
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   removeCounter(sessionHandle, counter) {
     var XML;
@@ -668,32 +710,9 @@ class perfMonService {
     var server = this._HOST;
 
     if (Array.isArray(counter)) {
-      counter.forEach(
-        (item) =>
-          (counterStr +=
-            "<soap:Counter>" +
-            "<soap:Name>" +
-            "\\\\" +
-            item.host +
-            "\\" +
-            item.object +
-            "\\" +
-            item.counter +
-            "</soap:Name>" +
-            "</soap:Counter>")
-      );
+      counter.forEach((item) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + item.host + "\\" + item.object + "\\" + item.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
-      counterStr =
-        "<soap:Counter>" +
-        "<soap:Name>" +
-        "\\\\" +
-        counter.host +
-        "\\" +
-        counter.object +
-        "\\" +
-        counter.counter +
-        "</soap:Name>" +
-        "</soap:Counter>";
+      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + counter.object + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
     }
 
     XML = util.format(XML_REMOVE_COUNTER_ENVELOPE, sessionHandle, counterStr);
@@ -702,11 +721,13 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
@@ -724,19 +745,24 @@ class perfMonService {
             if (keyExists(output, "perfmonRemoveCounterResponse")) {
               var returnResults = output.Body.perfmonRemoveCounterResponse;
               if (returnResults) {
-                resolve({ response: "success" });
+                promiseResults.Results = { response: "success" };
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -744,12 +770,14 @@ class perfMonService {
    * Post Fetch using Cisco PerfMon API
    *
    * @queryCounterDescription
-   var service = new perfMonService();
-   service.queryCounterDescription().then((success => {
-        console.log(success);
-      }))
+   * @example
+   * var service = new perfMonService();
+   * service.queryCounterDescription().then((results => {
+   *    console.log(results.Results);
+   * }))
    * @memberof perfMonService
-   * @returns {promise} returns a Promise
+   * @param {object} counter - The counter to query. Example: Memory
+   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   queryCounterDescription(counter) {
     var XML;
@@ -757,15 +785,7 @@ class perfMonService {
     options.SOAPAction = `perfmonQueryCounterDescription`;
     var server = this._HOST;
 
-    var counterStr =
-      "<soap:Counter>" +
-      "\\\\" +
-      counter.host +
-      "\\" +
-      counter.object +
-      "\\" +
-      counter.counter +
-      "</soap:Counter>";
+    var counterStr = "<soap:Counter>" + "\\\\" + counter.host + "\\" + counter.object + "\\" + counter.counter + "</soap:Counter>";
 
     XML = util.format(XML_QUERY_COUNTER_ENVELOPE, counterStr);
 
@@ -773,14 +793,17 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
+      // Set up our promise results
+      var promiseResults = {
+        Cookie: "",
+        Results: "",
+      };
       // We fetch the API endpoint
-      fetch(
-        `https://${server}:8443/perfmonservice2/services/PerfmonService/`,
-        options
-      )
+      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
+            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -794,23 +817,26 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
-              var returnResults =
-                output.Body.perfmonQueryCounterDescriptionResponse
-                  .perfmonQueryCounterDescriptionReturn;
+              var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
               if (returnResults) {
-                resolve(clean(returnResults));
+                promiseResults.Results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                reject(output.Body.Fault);
+                promiseResults.Results = output.Body.Fault;
+                reject(promiseResults);
               }
             } else {
-              resolve({ response: "empty" });
+              promiseResults.Results = { response: "empty" };
+              resolve(promiseResults);
             }
           } catch (e) {
-            reject(e);
+            promiseResults.Results = e;
+            reject(promiseResults);
           }
         })
         .catch((error) => {
-          reject(error);
+          promiseResults.Results = error;
+          reject(promiseResults);
         }); // catches the error and logs it
     });
   }
@@ -887,11 +913,7 @@ const clean = (object) => {
     if (v && typeof v === "object") {
       clean(v);
     }
-    if (
-      (v && typeof v === "object" && !Object.keys(v).length) ||
-      v === null ||
-      v === undefined
-    ) {
+    if ((v && typeof v === "object" && !Object.keys(v).length) || v === null || v === undefined) {
       if (Array.isArray(object)) {
         object.splice(k, 1);
       } else {
