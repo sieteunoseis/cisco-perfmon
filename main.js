@@ -205,8 +205,20 @@ class perfMonService {
                 reject(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Return the response status instead.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
