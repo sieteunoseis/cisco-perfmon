@@ -1,3 +1,5 @@
+// fetch-retry can also wrap Node.js's native fetch API implementation:
+const fetch = require('fetch-retry')(global.fetch);
 const util = require("util");
 const parseString = require("xml2js").parseString;
 const stripPrefix = require("xml2js").processors.stripPrefix;
@@ -98,12 +100,15 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
 class perfMonService {
   constructor(host, username, password, options) {
     this._OPTIONS = {
+      retries: 5,
+      retryDelay: 800,
+      retryOn: [503],
       method: "POST",
       headers: {
         Authorization: "Basic " + Buffer.from(username + ":" + password).toString("base64"),
         "Content-Type": "text/xml;charset=UTF-8",
         Connection: "keep-alive",
-      },
+      }
     };
 
     // Adds additional headers if they are provided. Useful for adding cookies for SSO sessions

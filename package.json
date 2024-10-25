@@ -1,6 +1,6 @@
 {
   "name": "cisco-perfmon",
-  "version": "1.3.1",
+  "version": "1.3.2",
   "description": "A library to pull Perfmon data from Cisco VOS applications via SOAP",
   "main": "main.js",
   "scripts": {
@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/sieteunoseis/cisco-perfmon#readme",
   "dependencies": {
+    "fetch-retry": "^6.0.0",
     "util": "*",
     "xml2js": "*"
   },
