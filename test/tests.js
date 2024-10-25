@@ -30,14 +30,14 @@ var cucmServerName = env.CUCM_SERVER_NAME;
 var SessionID;
 var counterObj = {
   host: cucmServerName,
-  object: "Processor(_Total)",
-  counter: "% CPU Time",
+  object: "Memory",
+  counter: "% Mem Used",
 };
 
 var serviceSSO = "";
 
 (async () => {
-  console.log("Let's get a description of our counter.");
+  console.log("Let's get a description of our counter. We will also retrieve a cookie to use for the rest of the session.");
   await service
     .queryCounterDescription(counterObj)
     .then((results) => {
@@ -50,12 +50,22 @@ var serviceSSO = "";
       console.log(error);
     });
 
+  console.log("Let's collect some non session counter data.");
+  await serviceSSO
+    .collectCounterData(cucmServerName, "Cisco CallManager")
+    .then((results) => {
+      console.log("collectCounterData", results.Results);
+    })
+    .catch((error) => {
+      console.log(error);
+    });
+
   console.log("Let's open a session, add a counter, wait 30 seconds, collect the session data, remove the counter and finally close the session");
   await serviceSSO
     .openSession()
     .then(async (results) => {
       console.log("SessionID", results.Results);
-      SessionID = results;
+      SessionID = results.Results;
       await serviceSSO
         .addCounter(SessionID, counterObj)
         .then(async (results) => {
@@ -91,16 +101,6 @@ var serviceSSO = "";
         .catch((error) => {
           console.log(error);
         });
-    })
-    .catch((error) => {
-      console.log(error);
-    });
-
-  console.log("Let's collect some non session counter data.");
-  await serviceSSO
-    .collectCounterData(cucmServerName, "Cisco CallManager")
-    .then((results) => {
-      console.log("collectCounterData", results.Results);
     })
     .catch((error) => {
       console.log(error);

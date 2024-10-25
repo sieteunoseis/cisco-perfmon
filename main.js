@@ -1,5 +1,5 @@
 // fetch-retry can also wrap Node.js's native fetch API implementation:
-const fetch = require('fetch-retry')(global.fetch);
+const fetch = require("fetch-retry")(global.fetch);
 const util = require("util");
 const parseString = require("xml2js").parseString;
 const stripPrefix = require("xml2js").processors.stripPrefix;
@@ -100,15 +100,15 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
 class perfMonService {
   constructor(host, username, password, options) {
     this._OPTIONS = {
-      retries: 5,
-      retryDelay: 800,
+      retries: process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3,
+      retryDelay: process.env.PERFMON_RETRY_DELAY ? parseInt(process.env.PERFMON_RETRY_DELAY) : 1000,
       retryOn: [503],
       method: "POST",
       headers: {
         Authorization: "Basic " + Buffer.from(username + ":" + password).toString("base64"),
         "Content-Type": "text/xml;charset=UTF-8",
         Connection: "keep-alive",
-      }
+      },
     };
 
     // Adds additional headers if they are provided. Useful for adding cookies for SSO sessions
@@ -166,48 +166,54 @@ class perfMonService {
             // Remove unnecessary keys
             removeKeys(output, "$");
 
-            if (keyExists(output, "perfmonCollectCounterDataReturn")) {
-              var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
-              if (returnResults) {
-                var newOutput;
-                if (Array.isArray(returnResults)) {
-                  newOutput = returnResults.map((item) => {
-                    let arr = item.Name.split("\\").filter((element) => element);
+            // Let's check if the response contains the key we are looking for. This is the return data.
+            if (keyExists(output, "perfmonCollectCounterDataResponse")) {
+              if (keyExists(output, "perfmonCollectCounterDataReturn")) {
+                var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
+                if (returnResults) {
+                  var newOutput;
+                  if (Array.isArray(returnResults)) {
+                    newOutput = returnResults.map((item) => {
+                      let arr = item.Name.split("\\").filter((element) => element);
+
+                      let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                        return e;
+                      });
+
+                      return {
+                        host: arr[0],
+                        object: instanceArr[0],
+                        instance: instanceArr[1] ? instanceArr[1] : "",
+                        counter: arr[2],
+                        value: item.Value,
+                        cstatus: item.CStatus,
+                      };
+                    });
+                  } else {
+                    let arr = returnResults.Name.split("\\").filter((element) => element);
 
                     let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                       return e;
                     });
 
-                    return {
+                    newOutput = {
                       host: arr[0],
                       object: instanceArr[0],
                       instance: instanceArr[1] ? instanceArr[1] : "",
                       counter: arr[2],
-                      value: item.Value,
-                      cstatus: item.CStatus,
+                      value: returnResults.Value,
+                      cstatus: returnResults.CStatus,
                     };
-                  });
+                  }
+                  promiseResults.Results = clean(newOutput);
+                  resolve(promiseResults);
                 } else {
-                  let arr = returnResults.Name.split("\\").filter((element) => element);
-
-                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                    return e;
-                  });
-
-                  newOutput = {
-                    host: arr[0],
-                    object: instanceArr[0],
-                    instance: instanceArr[1] ? instanceArr[1] : "",
-                    counter: arr[2],
-                    value: returnResults.Value,
-                    cstatus: returnResults.CStatus,
-                  };
+                  promiseResults.Results = { response: "empty" };
+                  resolve(promiseResults);
                 }
-                promiseResults.Results = clean(newOutput);
-                resolve(promiseResults);
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "empty" };
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
@@ -221,7 +227,7 @@ class perfMonService {
                 }
                 resolve(promiseResults);
               } else {
-                // Error unknown. Return the response status instead.
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
                 reject(response.status);
               }
             }
@@ -283,53 +289,69 @@ class perfMonService {
             // Remove unnecessary keys
             removeKeys(output, "$");
 
-            if (keyExists(output, "perfmonCollectSessionDataReturn")) {
-              var returnResults = output.Body.perfmonCollectSessionDataResponse.perfmonCollectSessionDataReturn;
+            if (keyExists(output, "perfmonCollectSessionDataResponse")) {
+              if (keyExists(output, "perfmonCollectSessionDataReturn")) {
+                var returnResults = output.Body.perfmonCollectSessionDataResponse.perfmonCollectSessionDataReturn;
+                if (returnResults) {
+                  var newOutput;
+                  if (Array.isArray(returnResults)) {
+                    newOutput = returnResults.map((item) => {
+                      let arr = item.Name.split("\\").filter((element) => element);
 
-              if (returnResults) {
-                var newOutput;
-                if (Array.isArray(returnResults)) {
-                  newOutput = returnResults.map((item) => {
-                    let arr = item.Name.split("\\").filter((element) => element);
+                      let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                        return e;
+                      });
+
+                      return {
+                        host: arr[0],
+                        object: instanceArr[0],
+                        instance: instanceArr[1] ? instanceArr[1] : "",
+                        counter: arr[2],
+                        value: item.Value,
+                        cstatus: item.CStatus,
+                      };
+                    });
+                  } else {
+                    let arr = returnResults.Name.split("\\").filter((element) => element);
 
                     let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                       return e;
                     });
 
-                    return {
+                    newOutput = {
                       host: arr[0],
                       object: instanceArr[0],
                       instance: instanceArr[1] ? instanceArr[1] : "",
                       counter: arr[2],
-                      value: item.Value,
-                      cstatus: item.CStatus,
+                      value: returnResults.Value,
+                      cstatus: returnResults.CStatus,
                     };
-                  });
+                  }
+                  promiseResults.Results = clean(newOutput);
+                  resolve(promiseResults);
                 } else {
-                  let arr = returnResults.Name.split("\\").filter((element) => element);
-
-                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                    return e;
-                  });
-
-                  newOutput = {
-                    host: arr[0],
-                    object: instanceArr[0],
-                    instance: instanceArr[1] ? instanceArr[1] : "",
-                    counter: arr[2],
-                    value: returnResults.Value,
-                    cstatus: returnResults.CStatus,
-                  };
+                  promiseResults.Results = { response: "empty" };
+                  resolve(promiseResults);
                 }
-                promiseResults.Results = clean(newOutput);
-                resolve(promiseResults);
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "empty" };
+                resolve(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -389,19 +411,35 @@ class perfMonService {
             // Remove unnecessary keys
             removeKeys(output, "$");
 
-            if (keyExists(output, "perfmonListCounterReturn")) {
-              var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
-
-              if (returnResults) {
-                promiseResults.Results = clean(returnResults);
-                resolve(promiseResults);
+            if (keyExists(output, "perfmonListCounterResponse")) {
+              if (keyExists(output, "perfmonListCounterReturn")) {
+                var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
+                if (returnResults) {
+                  promiseResults.Results = clean(returnResults);
+                  resolve(promiseResults);
+                } else {
+                  promiseResults.Results = { response: "empty" };
+                  resolve(promiseResults);
+                }
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "empty" };
+                resolve(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -462,19 +500,35 @@ class perfMonService {
             // Remove unnecessary keys
             removeKeys(output, "$");
 
-            if (keyExists(output, "perfmonListInstanceReturn")) {
-              var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
-
-              if (returnResults) {
-                promiseResults.Results = clean(returnResults);
-                resolve(promiseResults);
+            if (keyExists(output, "perfmonListInstanceResponse")) {
+              if (keyExists(output, "perfmonListInstanceReturn")) {
+                var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
+                if (returnResults) {
+                  promiseResults.Results = clean(returnResults);
+                  resolve(promiseResults);
+                } else {
+                  promiseResults.Results = { response: "empty" };
+                  resolve(promiseResults);
+                }
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "empty" };
+                resolve(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -532,19 +586,35 @@ class perfMonService {
             // Remove unnecessary keys
             removeKeys(output, "$");
 
-            if (keyExists(output, "perfmonOpenSessionReturn")) {
-              var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
-
-              if (returnResults) {
-                promiseResults.Results = clean(returnResults);
-                resolve(promiseResults);
+            if (keyExists(output, "perfmonOpenSessionResponse")) {
+              if (keyExists(output, "perfmonOpenSessionReturn")) {
+                var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
+                if (returnResults) {
+                  promiseResults.Results = clean(returnResults);
+                  resolve(promiseResults);
+                } else {
+                  promiseResults.Results = { response: "empty" };
+                  resolve(promiseResults);
+                }
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "empty" };
+                resolve(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -609,12 +679,24 @@ class perfMonService {
                 promiseResults.Results = { response: "success" };
                 resolve(promiseResults);
               } else {
-                promiseResults.Results = output.Body.Fault;
+                promiseResults.Results = { response: "unknow" };
                 reject(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -682,17 +764,23 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonAddCounterResponse")) {
-              var returnResults = output.Body.perfmonAddCounterResponse;
-              if (returnResults) {
-                promiseResults.Results = { response: "success" };
+              promiseResults.Results = { response: "success" };
+              resolve(promiseResults);
+            } else {
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
                 resolve(promiseResults);
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
               }
-            } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -765,12 +853,24 @@ class perfMonService {
                 promiseResults.Results = { response: "success" };
                 resolve(promiseResults);
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "unknown" };
+                resolve(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
@@ -833,18 +933,35 @@ class perfMonService {
             // Remove unnecessary keys
             removeKeys(output, "$");
 
-            if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
-              var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
-              if (returnResults) {
-                promiseResults.Results = clean(returnResults);
-                resolve(promiseResults);
+            if (keyExists(output, "perfmonQueryCounterDescriptionResponse")) {
+              if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
+                var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
+                if (returnResults) {
+                  promiseResults.Results = clean(returnResults);
+                  resolve(promiseResults);
+                } else {
+                  promiseResults.Results = { response: "empty" };
+                  resolve(promiseResults);
+                }
               } else {
-                promiseResults.Results = output.Body.Fault;
-                reject(promiseResults);
+                promiseResults.Results = { response: "empty" };
+                resolve(promiseResults);
               }
             } else {
-              promiseResults.Results = { response: "empty" };
-              resolve(promiseResults);
+              // Error checking. If the response contains a fault, we return the fault.
+              if (keyExists(output, "Fault")) {
+                if (output.Body.Fault.faultcode.includes("RateControl")) {
+                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                } else if (output.Body.Fault.faultcode.includes("generalException")) {
+                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                } else {
+                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                }
+                resolve(promiseResults);
+              } else {
+                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
+                reject(response.status);
+              }
             }
           } catch (e) {
             promiseResults.Results = e;
