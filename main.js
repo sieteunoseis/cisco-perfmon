@@ -146,15 +146,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -205,25 +205,25 @@ class perfMonService {
                       cstatus: returnResults.CStatus,
                     };
                   }
-                  promiseResults.Results = clean(newOutput);
+                  promiseResults.results = clean(newOutput);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.Results = { response: "empty" };
+                  promiseResults.results = { response: "empty" };
                   resolve(promiseResults);
                 }
               } else {
-                promiseResults.Results = { response: "empty" };
+                promiseResults.results = { response: "empty" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -232,12 +232,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -269,15 +269,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -327,25 +327,25 @@ class perfMonService {
                       cstatus: returnResults.CStatus,
                     };
                   }
-                  promiseResults.Results = clean(newOutput);
+                  promiseResults.results = clean(newOutput);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.Results = { response: "empty" };
+                  promiseResults.results = { response: "empty" };
                   resolve(promiseResults);
                 }
               } else {
-                promiseResults.Results = { response: "empty" };
+                promiseResults.results = { response: "empty" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -354,12 +354,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -391,15 +391,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -415,25 +415,25 @@ class perfMonService {
               if (keyExists(output, "perfmonListCounterReturn")) {
                 var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
                 if (returnResults) {
-                  promiseResults.Results = clean(returnResults);
+                  promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.Results = { response: "empty" };
+                  promiseResults.results = { response: "empty" };
                   resolve(promiseResults);
                 }
               } else {
-                promiseResults.Results = { response: "empty" };
+                promiseResults.results = { response: "empty" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -442,12 +442,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -480,15 +480,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -504,25 +504,25 @@ class perfMonService {
               if (keyExists(output, "perfmonListInstanceReturn")) {
                 var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
                 if (returnResults) {
-                  promiseResults.Results = clean(returnResults);
+                  promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.Results = { response: "empty" };
+                  promiseResults.results = { response: "empty" };
                   resolve(promiseResults);
                 }
               } else {
-                promiseResults.Results = { response: "empty" };
+                promiseResults.results = { response: "empty" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -531,12 +531,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -566,15 +566,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -590,25 +590,25 @@ class perfMonService {
               if (keyExists(output, "perfmonOpenSessionReturn")) {
                 var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
                 if (returnResults) {
-                  promiseResults.Results = clean(returnResults);
+                  promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.Results = { response: "empty" };
+                  promiseResults.results = { response: "empty" };
                   resolve(promiseResults);
                 }
               } else {
-                promiseResults.Results = { response: "empty" };
+                promiseResults.results = { response: "empty" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -617,12 +617,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -653,15 +653,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -676,21 +676,21 @@ class perfMonService {
             if (keyExists(output, "perfmonCloseSessionResponse")) {
               var returnResults = output.Body.perfmonCloseSessionResponse;
               if (returnResults) {
-                promiseResults.Results = { response: "success" };
+                promiseResults.results = { response: "success" };
                 resolve(promiseResults);
               } else {
-                promiseResults.Results = { response: "unknow" };
+                promiseResults.results = { response: "unknow" };
                 reject(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -699,12 +699,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -764,17 +764,17 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonAddCounterResponse")) {
-              promiseResults.Results = { response: "success" };
+              promiseResults.results = { response: "success" };
               resolve(promiseResults);
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -783,12 +783,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -850,21 +850,21 @@ class perfMonService {
             if (keyExists(output, "perfmonRemoveCounterResponse")) {
               var returnResults = output.Body.perfmonRemoveCounterResponse;
               if (returnResults) {
-                promiseResults.Results = { response: "success" };
+                promiseResults.results = { response: "success" };
                 resolve(promiseResults);
               } else {
-                promiseResults.Results = { response: "unknown" };
+                promiseResults.results = { response: "unknown" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -873,12 +873,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
@@ -912,15 +912,15 @@ class perfMonService {
     return new Promise((resolve, reject) => {
       // Set up our promise results
       var promiseResults = {
-        Cookie: "",
-        Results: "",
+        cookie: "",
+        results: "",
       };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
             var data = []; // create an array to save chunked data from server
-            promiseResults.Cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
             const reader = response.body.getReader();
             for await (const chunk of readChunks(reader)) {
@@ -937,25 +937,25 @@ class perfMonService {
               if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
                 var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
                 if (returnResults) {
-                  promiseResults.Results = clean(returnResults);
+                  promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.Results = { response: "empty" };
+                  promiseResults.results = { response: "empty" };
                   resolve(promiseResults);
                 }
               } else {
-                promiseResults.Results = { response: "empty" };
+                promiseResults.results = { response: "empty" };
                 resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.Results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.Results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.Results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
                 resolve(promiseResults);
               } else {
@@ -964,12 +964,12 @@ class perfMonService {
               }
             }
           } catch (e) {
-            promiseResults.Results = e;
+            promiseResults.results = e;
             reject(promiseResults);
           }
         })
         .catch((error) => {
-          promiseResults.Results = error;
+          promiseResults.results = error;
           reject(promiseResults);
         }); // catches the error and logs it
     });
