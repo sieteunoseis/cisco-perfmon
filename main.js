@@ -85,6 +85,17 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
 </soapenv:Body>
 </soapenv:Envelope>`;
 
+// Set up our promise results
+var promiseResults = {
+  cookie: "",
+  results: "",
+};
+
+// Set up our error results
+var errorResults = {
+  message: "",
+};
+
 /**
  * Cisco Perfmon Service
  * This is a service class that uses fetch and promises to pull Perfmon data from Cisco CUCM
@@ -130,7 +141,7 @@ class perfMonService {
    * @memberof perfMonService
    * @param {string} host - The host to collect data from
    * @param {string} object - The object to collect data about. Example: Cisco CallManager
-   * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
+   * @returns {object} returns JSON via a Promise. JSON contains cookie and results if successful, otherwise it returns an error object.
    */
   collectCounterData(host, object) {
     var XML;
@@ -144,11 +155,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -208,37 +214,40 @@ class perfMonService {
                   promiseResults.results = clean(newOutput);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.results = { response: "empty" };
-                  resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
                 }
               } else {
-                promiseResults.results = { response: "empty" };
-                resolve(promiseResults);
+                // We expected results but got none. This is an error.
+                errorResults.message = "No results found";
+                reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -267,11 +276,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -330,37 +334,40 @@ class perfMonService {
                   promiseResults.results = clean(newOutput);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.results = { response: "empty" };
-                  resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
                 }
               } else {
-                promiseResults.results = { response: "empty" };
-                resolve(promiseResults);
+                // We expected results but got none. This is an error.
+                errorResults.message = "No results found";
+                reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -389,11 +396,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -418,37 +420,40 @@ class perfMonService {
                   promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.results = { response: "empty" };
-                  resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
                 }
               } else {
-                promiseResults.results = { response: "empty" };
-                resolve(promiseResults);
+                // We expected results but got none. This is an error.
+                errorResults.message = "No results found";
+                reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -478,11 +483,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -507,37 +507,40 @@ class perfMonService {
                   promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.results = { response: "empty" };
-                  resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
                 }
               } else {
-                promiseResults.results = { response: "empty" };
-                resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -564,11 +567,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -593,37 +591,40 @@ class perfMonService {
                   promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.results = { response: "empty" };
-                  resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
                 }
               } else {
-                promiseResults.results = { response: "empty" };
-                resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -651,11 +652,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -676,36 +672,37 @@ class perfMonService {
             if (keyExists(output, "perfmonCloseSessionResponse")) {
               var returnResults = output.Body.perfmonCloseSessionResponse;
               if (returnResults) {
-                promiseResults.results = { response: "success" };
+                promiseResults.results = "success";
                 resolve(promiseResults);
               } else {
-                promiseResults.results = { response: "unknow" };
-                reject(promiseResults);
+                errorResults.message = "unknown";
+                reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -742,11 +739,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        Cookie: "",
-        Results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -764,32 +756,39 @@ class perfMonService {
             removeKeys(output, "$");
 
             if (keyExists(output, "perfmonAddCounterResponse")) {
-              promiseResults.results = { response: "success" };
-              resolve(promiseResults);
+              var returnResults = output.Body.perfmonAddCounterResponse;
+              if (returnResults) {
+                promiseResults.results = "success";
+                resolve(promiseResults);
+              } else {
+                errorResults.message = "unknown";
+                reject(errorResults);
+              }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -826,11 +825,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        Cookie: "",
-        Results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -850,36 +844,37 @@ class perfMonService {
             if (keyExists(output, "perfmonRemoveCounterResponse")) {
               var returnResults = output.Body.perfmonRemoveCounterResponse;
               if (returnResults) {
-                promiseResults.results = { response: "success" };
+                promiseResults.results = "success";
                 resolve(promiseResults);
               } else {
-                promiseResults.results = { response: "unknown" };
-                resolve(promiseResults);
+                errorResults.message = "unknown";
+                reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
@@ -910,11 +905,6 @@ class perfMonService {
     options.body = soapBody;
 
     return new Promise((resolve, reject) => {
-      // Set up our promise results
-      var promiseResults = {
-        cookie: "",
-        results: "",
-      };
       // We fetch the API endpoint
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
@@ -940,37 +930,40 @@ class perfMonService {
                   promiseResults.results = clean(returnResults);
                   resolve(promiseResults);
                 } else {
-                  promiseResults.results = { response: "empty" };
-                  resolve(promiseResults);
+                  // We expected results but got none. This is an error.
+                  errorResults.message = "No results found";
+                  reject(errorResults);
                 }
               } else {
-                promiseResults.results = { response: "empty" };
-                resolve(promiseResults);
+                // We expected results but got none. This is an error.
+                errorResults.message = "No results found";
+                reject(errorResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
               if (keyExists(output, "Fault")) {
                 if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  promiseResults.results = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
                 } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  promiseResults.results = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
                 } else {
-                  promiseResults.results = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
+                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
                 }
-                resolve(promiseResults);
+                reject(errorResults);
               } else {
                 // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                reject(response.status);
+                errorResults.message = response.status;
+                reject(errorResults);
               }
             }
           } catch (e) {
-            promiseResults.results = e;
-            reject(promiseResults);
+            errorResults.message = e;
+            reject(errorResults);
           }
         })
         .catch((error) => {
-          promiseResults.results = error;
-          reject(promiseResults);
+          errorResults.message = error;
+          reject(errorResults);
         }); // catches the error and logs it
     });
   }
