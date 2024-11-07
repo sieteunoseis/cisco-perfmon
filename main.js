@@ -176,52 +176,45 @@ class perfMonService {
             if (keyExists(output, "perfmonCollectCounterDataResponse")) {
               if (keyExists(output, "perfmonCollectCounterDataReturn")) {
                 var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
-                if (returnResults) {
-                  var newOutput;
-                  if (Array.isArray(returnResults)) {
-                    newOutput = returnResults.map((item) => {
-                      let arr = item.Name.split("\\").filter((element) => element);
-
-                      let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                        return e;
-                      });
-
-                      return {
-                        host: arr[0],
-                        object: instanceArr[0],
-                        instance: instanceArr[1] ? instanceArr[1] : "",
-                        counter: arr[2],
-                        value: item.Value,
-                        cstatus: item.CStatus,
-                      };
-                    });
-                  } else {
-                    let arr = returnResults.Name.split("\\").filter((element) => element);
+                var newOutput;
+                if (Array.isArray(returnResults)) {
+                  newOutput = returnResults.map((item) => {
+                    let arr = item.Name.split("\\").filter((element) => element);
 
                     let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                       return e;
                     });
 
-                    newOutput = {
+                    return {
                       host: arr[0],
                       object: instanceArr[0],
                       instance: instanceArr[1] ? instanceArr[1] : "",
                       counter: arr[2],
-                      value: returnResults.Value,
-                      cstatus: returnResults.CStatus,
+                      value: item.Value,
+                      cstatus: item.CStatus,
                     };
-                  }
-                  promiseResults.results = clean(newOutput);
-                  resolve(promiseResults);
+                  });
                 } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
+                  let arr = returnResults.Name.split("\\").filter((element) => element);
+
+                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                    return e;
+                  });
+
+                  newOutput = {
+                    host: arr[0],
+                    object: instanceArr[0],
+                    instance: instanceArr[1] ? instanceArr[1] : "",
+                    counter: arr[2],
+                    value: returnResults.Value,
+                    cstatus: returnResults.CStatus,
+                  };
                 }
+                promiseResults.results = clean(newOutput);
+                resolve(promiseResults);
               } else {
-                // We expected results but got none. This is an error.
-                errorResults.message = "No results found";
-                reject(errorResults);
+                // Return JSON with no results.
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
@@ -296,52 +289,45 @@ class perfMonService {
             if (keyExists(output, "perfmonCollectSessionDataResponse")) {
               if (keyExists(output, "perfmonCollectSessionDataReturn")) {
                 var returnResults = output.Body.perfmonCollectSessionDataResponse.perfmonCollectSessionDataReturn;
-                if (returnResults) {
-                  var newOutput;
-                  if (Array.isArray(returnResults)) {
-                    newOutput = returnResults.map((item) => {
-                      let arr = item.Name.split("\\").filter((element) => element);
-
-                      let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                        return e;
-                      });
-
-                      return {
-                        host: arr[0],
-                        object: instanceArr[0],
-                        instance: instanceArr[1] ? instanceArr[1] : "",
-                        counter: arr[2],
-                        value: item.Value,
-                        cstatus: item.CStatus,
-                      };
-                    });
-                  } else {
-                    let arr = returnResults.Name.split("\\").filter((element) => element);
+                var newOutput;
+                if (Array.isArray(returnResults)) {
+                  newOutput = returnResults.map((item) => {
+                    let arr = item.Name.split("\\").filter((element) => element);
 
                     let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
                       return e;
                     });
 
-                    newOutput = {
+                    return {
                       host: arr[0],
                       object: instanceArr[0],
                       instance: instanceArr[1] ? instanceArr[1] : "",
                       counter: arr[2],
-                      value: returnResults.Value,
-                      cstatus: returnResults.CStatus,
+                      value: item.Value,
+                      cstatus: item.CStatus,
                     };
-                  }
-                  promiseResults.results = clean(newOutput);
-                  resolve(promiseResults);
+                  });
                 } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
+                  let arr = returnResults.Name.split("\\").filter((element) => element);
+
+                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+                    return e;
+                  });
+
+                  newOutput = {
+                    host: arr[0],
+                    object: instanceArr[0],
+                    instance: instanceArr[1] ? instanceArr[1] : "",
+                    counter: arr[2],
+                    value: returnResults.Value,
+                    cstatus: returnResults.CStatus,
+                  };
                 }
+                promiseResults.results = clean(newOutput);
+                resolve(promiseResults);
               } else {
-                // We expected results but got none. This is an error.
-                errorResults.message = "No results found";
-                reject(errorResults);
+                // Return JSON with no results.
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
@@ -416,18 +402,11 @@ class perfMonService {
             if (keyExists(output, "perfmonListCounterResponse")) {
               if (keyExists(output, "perfmonListCounterReturn")) {
                 var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
-                if (returnResults) {
-                  promiseResults.results = clean(returnResults);
-                  resolve(promiseResults);
-                } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
-                }
+                promiseResults.results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                // We expected results but got none. This is an error.
-                errorResults.message = "No results found";
-                reject(errorResults);
+                // Return JSON with no results.
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
@@ -503,18 +482,11 @@ class perfMonService {
             if (keyExists(output, "perfmonListInstanceResponse")) {
               if (keyExists(output, "perfmonListInstanceReturn")) {
                 var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
-                if (returnResults) {
-                  promiseResults.results = clean(returnResults);
-                  resolve(promiseResults);
-                } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
-                }
+                promiseResults.results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
+                // Return JSON with no results.
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
@@ -587,18 +559,11 @@ class perfMonService {
             if (keyExists(output, "perfmonOpenSessionResponse")) {
               if (keyExists(output, "perfmonOpenSessionReturn")) {
                 var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
-                if (returnResults) {
-                  promiseResults.results = clean(returnResults);
-                  resolve(promiseResults);
-                } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
-                }
+                promiseResults.results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
+                // Return JSON with no results.
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.
@@ -926,18 +891,11 @@ class perfMonService {
             if (keyExists(output, "perfmonQueryCounterDescriptionResponse")) {
               if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
                 var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
-                if (returnResults) {
-                  promiseResults.results = clean(returnResults);
-                  resolve(promiseResults);
-                } else {
-                  // We expected results but got none. This is an error.
-                  errorResults.message = "No results found";
-                  reject(errorResults);
-                }
+                promiseResults.results = clean(returnResults);
+                resolve(promiseResults);
               } else {
-                // We expected results but got none. This is an error.
-                errorResults.message = "No results found";
-                reject(errorResults);
+                // Return JSON with no results.
+                resolve(promiseResults);
               }
             } else {
               // Error checking. If the response contains a fault, we return the fault.

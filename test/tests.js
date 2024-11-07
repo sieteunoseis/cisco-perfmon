@@ -34,7 +34,6 @@ var counterObj = {
   counter: "% Mem Used",
 };
 
-var serviceSSO = "";
 
 (async () => {
   console.log("Let's get a description of our counter. We will also retrieve a cookie to use for the rest of the session.");
@@ -43,7 +42,7 @@ var serviceSSO = "";
     .then((response) => {
       console.log("queryCounterDescription: ", response.results);
       if (response.cookie) {
-        serviceSSO = new perfMonService(env.CUCM_HOSTNAME, "", "", { Cookie: response.cookie });
+        service = new perfMonService(env.CUCM_HOSTNAME, "", "", { Cookie: response.cookie });
       }
     })
     .catch((error) => {
@@ -51,7 +50,7 @@ var serviceSSO = "";
     });
 
   console.log("Let's collect some non session counter data.");
-  await serviceSSO
+  await service
     .collectCounterData(cucmServerName, "Cisco CallManager")
     .then((response) => {
       console.log("collectCounterData", response.results);
@@ -61,27 +60,27 @@ var serviceSSO = "";
     });
 
   console.log("Let's open a session, add a counter, wait 30 seconds, collect the session data, remove the counter and finally close the session");
-  await serviceSSO
+  await service
     .openSession()
     .then(async (response) => {
       console.log("SessionID", response.results);
       SessionID = response.results;
-      await serviceSSO
+      await service
         .addCounter(SessionID, counterObj)
         .then(async (response) => {
           console.log("addCounter", response.results);
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
           console.log("Wait 30 seconds");
           await delay(30000); /// waiting 30 second.
-          await serviceSSO
+          await service
             .collectSessionData(SessionID)
             .then(async (response) => {
               console.log("collectSessionData", response.results);
-              await serviceSSO
+              await service
                 .removeCounter(SessionID, response.results)
                 .then(async (response) => {
                   console.log("removeCounter", response.results);
-                  await serviceSSO
+                  await service
                     .closeSession(SessionID)
                     .then((response) => {
                       console.log("closeSession", response.results);
@@ -107,7 +106,7 @@ var serviceSSO = "";
     });
 
   console.log("Let's returns the list of available PerfMon objects and counters on a particular host");
-  await serviceSSO
+  await service
     .listCounter(cucmServerName)
     .then((response) => {
       console.log("listCounter", response.results);
@@ -117,7 +116,7 @@ var serviceSSO = "";
     });
 
   console.log("Let's return a list of instances of a PerfMon object on a particular host. Instances of an object can dynamically change. This operation returns the most recent list.");
-  await serviceSSO
+  await service
     .listInstance(cucmServerName, "Processor")
     .then((results) => {
       console.log("listInstance", results.results);
