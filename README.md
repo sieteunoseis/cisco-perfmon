@@ -51,11 +51,11 @@ var counterObj = {
 console.log("Let's get a description of our counter.");
 service
   .queryCounterDescription(counterObj)
-  .then((results) => {
-    console.log("queryCounterDescription", results);
+  .then((response) => {
+    console.log("queryCounterDescription", response.results);
   })
   .catch((error) => {
-    console.log(error);
+    console.log(error.message);
   });
 ```
 

@@ -370,7 +370,7 @@ class perfMonService {
    * @param {string} host - The host to collect data from.
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  listCounter(host) {
+  listCounter(host,filtered = []) {
     var XML;
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonListCounter`;
@@ -403,6 +403,10 @@ class perfMonService {
               if (keyExists(output, "perfmonListCounterReturn")) {
                 var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
                 promiseResults.results = clean(returnResults);
+                if (filtered.length > 0) {
+                  var res = promiseResults.results.filter(item => filtered.includes(item.Name));
+                  promiseResults.results = res;
+                }
                 resolve(promiseResults);
               } else {
                 // Return JSON with no results.
@@ -483,6 +487,13 @@ class perfMonService {
               if (keyExists(output, "perfmonListInstanceReturn")) {
                 var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
                 promiseResults.results = clean(returnResults);
+                if (!Array.isArray(promiseResults.results)) {
+                  var temp = promiseResults.results;
+                  promiseResults = {
+                    results: [],
+                  };
+                  promiseResults.results.push(temp);
+                }
                 resolve(promiseResults);
               } else {
                 // Return JSON with no results.
