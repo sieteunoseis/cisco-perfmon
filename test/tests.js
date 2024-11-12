@@ -30,10 +30,10 @@ var cucmServerName = env.CUCM_SERVER_NAME;
 var SessionID;
 var counterObj = {
   host: cucmServerName,
-  object: "Memory",
-  counter: "% Mem Used",
+  object: 'Partition',
+  instance: 'SharedMemory',
+  counter: 'Write Bytes Per Sec',
 };
-
 
 (async () => {
   console.log("Let's get a description of our counter. We will also retrieve a cookie to use for the rest of the session.");

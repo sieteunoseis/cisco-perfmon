@@ -111,9 +111,20 @@ var errorResults = {
 class perfMonService {
   constructor(host, username, password, options) {
     this._OPTIONS = {
-      retries: process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3,
-      retryDelay: process.env.PERFMON_RETRY_DELAY ? parseInt(process.env.PERFMON_RETRY_DELAY) : 1000,
-      retryOn: [503],
+      retryOn: function(attempt, error, response) {
+        // Only allow retries on JSESSIONIDSSO authenticaion attempts
+        if(!options){
+          return false
+        }else if (attempt > (process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3)) {
+          return false
+        };
+        // retry on any network error, or 4xx or 5xx status codes
+        if (error !== null || response.status >= 400) {
+          const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          delay(process.env.PERFMON_RETRY_DELAY ? parseInt(process.env.PERFMON_RETRY_DELAY) : 1000);
+          return true;
+        }
+      },
       method: "POST",
       headers: {
         Authorization: "Basic " + Buffer.from(username + ":" + password).toString("base64"),
@@ -702,11 +713,11 @@ class perfMonService {
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonAddCounter`;
     var server = this._HOST;
-
+    // var counterStr = "<soap:Counter>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Counter>";
     if (Array.isArray(counter)) {
-      counter.forEach((item) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + item.host + "\\" + item.object + "\\" + item.counter + "</soap:Name>" + "</soap:Counter>"));
+      counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
-      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + counter.object + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
+      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
     }
 
     XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
@@ -790,9 +801,9 @@ class perfMonService {
     var server = this._HOST;
 
     if (Array.isArray(counter)) {
-      counter.forEach((item) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + item.host + "\\" + item.object + "\\" + item.counter + "</soap:Name>" + "</soap:Counter>"));
+      counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
-      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + counter.object + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
+      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
     }
 
     XML = util.format(XML_REMOVE_COUNTER_ENVELOPE, sessionHandle, counterStr);
@@ -873,7 +884,7 @@ class perfMonService {
     options.SOAPAction = `perfmonQueryCounterDescription`;
     var server = this._HOST;
 
-    var counterStr = "<soap:Counter>" + "\\\\" + counter.host + "\\" + counter.object + "\\" + counter.counter + "</soap:Counter>";
+    var counterStr = "<soap:Counter>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Counter>";
 
     XML = util.format(XML_QUERY_COUNTER_ENVELOPE, counterStr);
 
