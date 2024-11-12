@@ -28,7 +28,8 @@ var cucmServerName = env.CUCM_SERVER_NAME;
 
 // Variables to hold our SessionID and our Session Counter
 var SessionID;
-var counterObj = {
+var counterObject = "Cisco CallManager";
+var sessionObj = {
   host: cucmServerName,
   object: 'Partition',
   instance: 'SharedMemory',
@@ -38,7 +39,7 @@ var counterObj = {
 (async () => {
   console.log("Let's get a description of our counter. We will also retrieve a cookie to use for the rest of the session.");
   await service
-    .queryCounterDescription(counterObj)
+    .queryCounterDescription(sessionObj)
     .then((response) => {
       console.log("queryCounterDescription: ", response.results);
       if (response.cookie) {
@@ -51,9 +52,9 @@ var counterObj = {
 
   console.log("Let's collect some non session counter data.");
   await service
-    .collectCounterData(cucmServerName, "Cisco CallManager")
+    .collectCounterData(cucmServerName, counterObject)
     .then((response) => {
-      console.log("collectCounterData", response.results);
+      console.log("collectCounterData", response);
     })
     .catch((error) => {
       console.log(error.message);
@@ -66,7 +67,7 @@ var counterObj = {
       console.log("SessionID", response.results);
       SessionID = response.results;
       await service
-        .addCounter(SessionID, counterObj)
+        .addCounter(SessionID, sessionObj)
         .then(async (response) => {
           console.log("addCounter", response.results);
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

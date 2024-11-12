@@ -85,17 +85,6 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-// Set up our promise results
-var promiseResults = {
-  cookie: "",
-  results: "",
-};
-
-// Set up our error results
-var errorResults = {
-  message: "",
-};
-
 /**
  * Cisco Perfmon Service
  * This is a service class that uses fetch and promises to pull Perfmon data from Cisco CUCM
@@ -111,13 +100,13 @@ var errorResults = {
 class perfMonService {
   constructor(host, username, password, options) {
     this._OPTIONS = {
-      retryOn: function(attempt, error, response) {
+      retryOn: function (attempt, error, response) {
         // Only allow retries on JSESSIONIDSSO authenticaion attempts
-        if(!options){
-          return false
-        }else if (attempt > (process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3)) {
-          return false
-        };
+        if (!options) {
+          return false;
+        } else if (attempt > (process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3)) {
+          return false;
+        }
         // retry on any network error, or 4xx or 5xx status codes
         if (error !== null || response.status >= 400) {
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -170,6 +159,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
@@ -284,6 +283,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
@@ -381,7 +390,7 @@ class perfMonService {
    * @param {string} host - The host to collect data from.
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  listCounter(host,filtered = []) {
+  listCounter(host, filtered = []) {
     var XML;
     var options = this._OPTIONS;
     options.SOAPAction = `perfmonListCounter`;
@@ -397,6 +406,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
@@ -415,7 +434,7 @@ class perfMonService {
                 var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
                 promiseResults.results = clean(returnResults);
                 if (filtered.length > 0) {
-                  var res = promiseResults.results.filter(item => filtered.includes(item.Name));
+                  var res = promiseResults.results.filter((item) => filtered.includes(item.Name));
                   promiseResults.results = res;
                 }
                 resolve(promiseResults);
@@ -481,6 +500,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
@@ -565,6 +594,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
@@ -643,6 +682,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
@@ -730,6 +779,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             // response.body is a ReadableStream
             const reader = response.body.getReader();
@@ -816,6 +875,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             // response.body is a ReadableStream
             const reader = response.body.getReader();
@@ -896,6 +965,16 @@ class perfMonService {
       fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
         .then(async (response) => {
           try {
+            // Set up our promise results
+            var promiseResults = {
+              cookie: "",
+              results: "",
+            };
+
+            // Set up our error results
+            var errorResults = {
+              message: "",
+            };
             var data = []; // create an array to save chunked data from server
             promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
             // response.body is a ReadableStream
