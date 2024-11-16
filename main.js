@@ -1,8 +1,8 @@
-// fetch-retry can also wrap Node.js's native fetch API implementation:
 const fetch = require("fetch-retry")(global.fetch);
 const util = require("util");
 const parseString = require("xml2js").parseString;
 const stripPrefix = require("xml2js").processors.stripPrefix;
+const http = require("http");
 
 var XML_ADD_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
  <soapenv:Header/>
@@ -98,27 +98,27 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
  * @returns {object} returns constructor object.
  */
 class perfMonService {
-  constructor(host, username, password, options) {
+  constructor(host, username, password, options = {}, retry = true) {
     this._OPTIONS = {
-      retryOn: function (attempt, error, response) {
-        // Only allow retries on JSESSIONIDSSO authenticaion attempts
-        if (!options) {
+      retryOn: async function (attempt, error, response) {
+        if (!retry) {
           return false;
-        } else if (attempt > (process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3)) {
+        }
+        if (attempt > (process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3)) {
           return false;
         }
         // retry on any network error, or 4xx or 5xx status codes
         if (error !== null || response.status >= 400) {
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-          delay(process.env.PERFMON_RETRY_DELAY ? parseInt(process.env.PERFMON_RETRY_DELAY) : 1000);
+          await delay(process.env.PERFMON_RETRY_DELAY ? parseInt(process.env.PERFMON_RETRY_DELAY) : 5000);
           return true;
         }
       },
       method: "POST",
       headers: {
-        Authorization: "Basic " + Buffer.from(username + ":" + password).toString("base64"),
+        Authorization: username && password ? "Basic " + Buffer.from(username + ":" + password).toString("base64") : "",
         "Content-Type": "text/xml;charset=UTF-8",
-        Connection: "keep-alive",
+        Connection: "Keep-Alive",
       },
     };
 
@@ -141,118 +141,47 @@ class perfMonService {
    * @memberof perfMonService
    * @param {string} host - The host to collect data from
    * @param {string} object - The object to collect data about. Example: Cisco CallManager
-   * @returns {object} returns JSON via a Promise. JSON contains cookie and results if successful, otherwise it returns an error object.
+   * @returns {object} returns JSON object. JSON contains cookie and results if successful, otherwise it returns an error object.
    */
-  collectCounterData(host, object) {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonCollectCounterData`;
-    var server = this._HOST;
+  async collectCounterData(host, object) {
+    try {
+      let options = this._OPTIONS;
+      let server = this._HOST;
+      let XML = util.format(XML_COLLECT_COUNTER_ENVELOPE, host, object);
+      let soapBody = Buffer.from(XML);
+      options.body = soapBody;
+      options.SOAPAction = `perfmonCollectCounterData`;
 
-    XML = util.format(XML_COLLECT_COUNTER_ENVELOPE, host, object);
+      let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-    var soapBody = Buffer.from(XML);
-    options.body = soapBody;
+      let promiseResults = {
+        cookie: "",
+        object: object,
+        results: "",
+      };
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+      promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+      let output = await parseXml(await response.text());
+      // Remove unnecessary keys
+      removeKeys(output, "$");
 
-            // Let's check if the response contains the key we are looking for. This is the return data.
-            if (keyExists(output, "perfmonCollectCounterDataResponse")) {
-              if (keyExists(output, "perfmonCollectCounterDataReturn")) {
-                var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
-                var newOutput;
-                if (Array.isArray(returnResults)) {
-                  newOutput = returnResults.map((item) => {
-                    let arr = item.Name.split("\\").filter((element) => element);
+      if (!response.ok) {
+        // Local throw; if it weren't, I'd use Error or a subclass
+        throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      }
 
-                    let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                      return e;
-                    });
-
-                    return {
-                      host: arr[0],
-                      object: instanceArr[0],
-                      instance: instanceArr[1] ? instanceArr[1] : "",
-                      counter: arr[2],
-                      value: item.Value,
-                      cstatus: item.CStatus,
-                    };
-                  });
-                } else {
-                  let arr = returnResults.Name.split("\\").filter((element) => element);
-
-                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                    return e;
-                  });
-
-                  newOutput = {
-                    host: arr[0],
-                    object: instanceArr[0],
-                    instance: instanceArr[1] ? instanceArr[1] : "",
-                    counter: arr[2],
-                    value: returnResults.Value,
-                    cstatus: returnResults.CStatus,
-                  };
-                }
-                promiseResults.results = clean(newOutput);
-                resolve(promiseResults);
-              } else {
-                // Return JSON with no results.
-                resolve(promiseResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+      // Let's check if the response contains the key we are looking for. This is the return data.
+      if (output?.Body?.perfmonCollectCounterDataResponse?.perfmonCollectCounterDataReturn) {
+        var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
+        return cleanResponse(returnResults);
+      } else {
+        // Return JSON with no results.
+        return promiseResults;
+      }
+    } catch (error) {
+      throw error;
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -267,115 +196,40 @@ class perfMonService {
    * @param {string} SessionHandle - A unique session ID from the client, of type SessionHandleType. The session handle that the perfmonOpenSession request previously opened.
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  collectSessionData(SessionHandle) {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonCollectSessionData`;
-    var server = this._HOST;
-
-    XML = util.format(XML_COLLECT_SESSION_ENVELOPE, SessionHandle);
-
-    var soapBody = Buffer.from(XML);
+  async collectSessionData(SessionHandle) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let XML = util.format(XML_COLLECT_SESSION_ENVELOPE, SessionHandle);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonCollectSessionData`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonCollectSessionDataResponse")) {
-              if (keyExists(output, "perfmonCollectSessionDataReturn")) {
-                var returnResults = output.Body.perfmonCollectSessionDataResponse.perfmonCollectSessionDataReturn;
-                var newOutput;
-                if (Array.isArray(returnResults)) {
-                  newOutput = returnResults.map((item) => {
-                    let arr = item.Name.split("\\").filter((element) => element);
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
 
-                    let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                      return e;
-                    });
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
 
-                    return {
-                      host: arr[0],
-                      object: instanceArr[0],
-                      instance: instanceArr[1] ? instanceArr[1] : "",
-                      counter: arr[2],
-                      value: item.Value,
-                      cstatus: item.CStatus,
-                    };
-                  });
-                } else {
-                  let arr = returnResults.Name.split("\\").filter((element) => element);
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
 
-                  let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
-                    return e;
-                  });
-
-                  newOutput = {
-                    host: arr[0],
-                    object: instanceArr[0],
-                    instance: instanceArr[1] ? instanceArr[1] : "",
-                    counter: arr[2],
-                    value: returnResults.Value,
-                    cstatus: returnResults.CStatus,
-                  };
-                }
-                promiseResults.results = clean(newOutput);
-                resolve(promiseResults);
-              } else {
-                // Return JSON with no results.
-                resolve(promiseResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    if (output?.Body?.perfmonCollectSessionDataResponse?.perfmonCollectSessionDataReturn) {
+      var returnResults = output.Body.perfmonCollectSessionDataResponse.perfmonCollectSessionDataReturn;
+      promiseResults.results = cleanResponse(returnResults);
+      return promiseResults;
+    } else {
+      // Return JSON with no results.
+      return promiseResults;
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -390,85 +244,44 @@ class perfMonService {
    * @param {string} host - The host to collect data from.
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  listCounter(host, filtered = []) {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonListCounter`;
-    var server = this._HOST;
-
-    XML = util.format(XML_LIST_COUNTER_ENVELOPE, host);
-
-    var soapBody = Buffer.from(XML);
+  async listCounter(host, filtered = []) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let XML = util.format(XML_LIST_COUNTER_ENVELOPE, host);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonListCounter`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonListCounterResponse")) {
-              if (keyExists(output, "perfmonListCounterReturn")) {
-                var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
-                promiseResults.results = clean(returnResults);
-                if (filtered.length > 0) {
-                  var res = promiseResults.results.filter((item) => filtered.includes(item.Name));
-                  promiseResults.results = res;
-                }
-                resolve(promiseResults);
-              } else {
-                // Return JSON with no results.
-                resolve(promiseResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonListCounterResponse?.perfmonListCounterReturn) {
+      var returnResults = output.Body.perfmonListCounterResponse.perfmonListCounterReturn;
+      promiseResults.results = clean(returnResults);
+      if (filtered.length > 0) {
+        var res = promiseResults.results.filter((item) => filtered.includes(item.Name));
+        promiseResults.results = res;
+      }
+      return promiseResults;
+    } else {
+      // Return JSON with no results.
+      return promiseResults;
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -484,88 +297,50 @@ class perfMonService {
    * @param {string} object - The object to collect data about. Example: Cisco CallManager
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  listInstance(host, object) {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonListInstance`;
-    var server = this._HOST;
-
-    XML = util.format(XML_LIST_INSTANCE_ENVELOPE, host, object);
-
-    var soapBody = Buffer.from(XML);
+  async listInstance(host, object) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let XML = util.format(XML_LIST_INSTANCE_ENVELOPE, host, object);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonListInstance`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      object: object,
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonListInstanceResponse")) {
-              if (keyExists(output, "perfmonListInstanceReturn")) {
-                var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
-                promiseResults.results = clean(returnResults);
-                if (!Array.isArray(promiseResults.results)) {
-                  var temp = promiseResults.results;
-                  promiseResults = {
-                    results: [],
-                  };
-                  promiseResults.results.push(temp);
-                }
-                resolve(promiseResults);
-              } else {
-                // Return JSON with no results.
-                resolve(promiseResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonListInstanceResponse?.perfmonListInstanceReturn) {
+      var returnResults = output.Body.perfmonListInstanceResponse.perfmonListInstanceReturn;
+      promiseResults.results = clean(returnResults);
+
+      // If the results are not an array, we make it an array.
+      if (!Array.isArray(promiseResults.results)) {
+        var temp = promiseResults.results;
+        promiseResults = {
+          results: [],
+        };
+        promiseResults.results.push(temp);
+      }
+      return promiseResults;
+    } else {
+      // Return JSON with no results.
+      return promiseResults;
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -579,80 +354,39 @@ class perfMonService {
    * @memberof perfMonService
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  openSession() {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonOpenSession`;
-    var server = this._HOST;
-    XML = util.format(XML_OPEN_SESSION_ENVELOPE);
-
-    var soapBody = Buffer.from(XML);
+  async openSession() {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let XML = util.format(XML_OPEN_SESSION_ENVELOPE);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonOpenSession`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonOpenSessionResponse")) {
-              if (keyExists(output, "perfmonOpenSessionReturn")) {
-                var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
-                promiseResults.results = clean(returnResults);
-                resolve(promiseResults);
-              } else {
-                // Return JSON with no results.
-                resolve(promiseResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonOpenSessionResponse?.perfmonOpenSessionReturn) {
+      var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
+      promiseResults.results = clean(returnResults);
+    } else {
+      // Return JSON with no results.
+      return promiseResults;
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -667,80 +401,38 @@ class perfMonService {
    * @param {string} sessionHandle - A unique session ID from the client, of type SessionHandleType. The session handle that the perfmonOpenSession request previously opened.
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  closeSession(sessionHandle) {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonCloseSession`;
-    var server = this._HOST;
-    XML = util.format(XML_CLOSE_SESSION_ENVELOPE, sessionHandle);
-
-    var soapBody = Buffer.from(XML);
+  async closeSession(sessionHandle) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let XML = util.format(XML_CLOSE_SESSION_ENVELOPE, sessionHandle);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonCloseSession`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonCloseSessionResponse")) {
-              var returnResults = output.Body.perfmonCloseSessionResponse;
-              if (returnResults) {
-                promiseResults.results = "success";
-                resolve(promiseResults);
-              } else {
-                errorResults.message = "unknown";
-                reject(errorResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonCloseSessionResponse) {
+      promiseResults.results = "success";
+      return promiseResults;
+    } else {
+      throw { status: response.status, code: "", message: "Empty results" };
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -756,87 +448,45 @@ class perfMonService {
    * @param {object} counter - The counter to add. Example: Memory
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  addCounter(sessionHandle, counter) {
-    var XML;
-    var counterStr = "";
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonAddCounter`;
-    var server = this._HOST;
-    // var counterStr = "<soap:Counter>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Counter>";
+  async addCounter(sessionHandle, counter) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let counterStr;
+    // Build the counter string
     if (Array.isArray(counter)) {
       counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
       counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
     }
-
-    XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
-
-    var soapBody = Buffer.from(XML);
+    let XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonAddCounter`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonAddCounterResponse")) {
-              var returnResults = output.Body.perfmonAddCounterResponse;
-              if (returnResults) {
-                promiseResults.results = "success";
-                resolve(promiseResults);
-              } else {
-                errorResults.message = "unknown";
-                reject(errorResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonAddCounterResponse) {
+      promiseResults.results = "success";
+      return promiseResults;
+    } else {
+      throw { status: response.status, code: "", message: "Empty results" };
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -852,87 +502,46 @@ class perfMonService {
    * @param {object} counter - The counter to remove. Example: Memory
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  removeCounter(sessionHandle, counter) {
-    var XML;
-    var counterStr = "";
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonRemoveCounter`;
-    var server = this._HOST;
+  async removeCounter(sessionHandle, counter) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
 
+    let counterStr;
     if (Array.isArray(counter)) {
       counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
       counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
     }
 
-    XML = util.format(XML_REMOVE_COUNTER_ENVELOPE, sessionHandle, counterStr);
-
-    var soapBody = Buffer.from(XML);
+    let XML = util.format(XML_REMOVE_COUNTER_ENVELOPE, sessionHandle, counterStr);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonRemoveCounter`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    let promiseResults = {
+      cookie: "",
+      results: "",
+    };
 
-            if (keyExists(output, "perfmonRemoveCounterResponse")) {
-              var returnResults = output.Body.perfmonRemoveCounterResponse;
-              if (returnResults) {
-                promiseResults.results = "success";
-                resolve(promiseResults);
-              } else {
-                errorResults.message = "unknown";
-                reject(errorResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonRemoveCounterResponse) {
+      promiseResults.results = "success";
+      return promiseResults;
+    } else {
+      throw { status: response.status, code: "", message: "Empty results" };
+    }
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -944,126 +553,47 @@ class perfMonService {
    *    console.log(results.Results);
    * }))
    * @memberof perfMonService
-   * @param {object} counter - The counter to query. Example: Memory
+   * @param {object} object - The counter to query. Example: Memory
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
-  queryCounterDescription(counter) {
-    var XML;
-    var options = this._OPTIONS;
-    options.SOAPAction = `perfmonQueryCounterDescription`;
-    var server = this._HOST;
-
-    var counterStr = "<soap:Counter>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Counter>";
-
-    XML = util.format(XML_QUERY_COUNTER_ENVELOPE, counterStr);
-
-    var soapBody = Buffer.from(XML);
+  async queryCounterDescription(object) {
+    let options = this._OPTIONS;
+    let server = this._HOST;
+    let counterStr = "<soap:Counter>" + "\\\\" + object.host + "\\" + (object.instance ? `${object.object}(${object.instance})` : object.object) + "\\" + object.counter + "</soap:Counter>";
+    let XML = util.format(XML_QUERY_COUNTER_ENVELOPE, counterStr);
+    let soapBody = Buffer.from(XML);
     options.body = soapBody;
+    options.SOAPAction = `perfmonQueryCounterDescription`;
 
-    return new Promise((resolve, reject) => {
-      // We fetch the API endpoint
-      fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options)
-        .then(async (response) => {
-          try {
-            // Set up our promise results
-            var promiseResults = {
-              cookie: "",
-              results: "",
-            };
+    let response = await fetch(`https://${server}:8443/perfmonservice2/services/PerfmonService/`, options);
 
-            // Set up our error results
-            var errorResults = {
-              message: "",
-            };
-            var data = []; // create an array to save chunked data from server
-            promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-            // response.body is a ReadableStream
-            const reader = response.body.getReader();
-            for await (const chunk of readChunks(reader)) {
-              data.push(Buffer.from(chunk));
-            }
-            var buffer = Buffer.concat(data); // create buffer of data
-            let xmlOutput = buffer.toString("binary").trim();
-            let output = await parseXml(xmlOutput);
+    let promiseResults = {
+      cookie: "",
+      object: object.object,
+      results: "",
+    };
 
-            // Remove unnecessary keys
-            removeKeys(output, "$");
+    promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
 
-            if (keyExists(output, "perfmonQueryCounterDescriptionResponse")) {
-              if (keyExists(output, "perfmonQueryCounterDescriptionReturn")) {
-                var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
-                promiseResults.results = clean(returnResults);
-                resolve(promiseResults);
-              } else {
-                // Return JSON with no results.
-                resolve(promiseResults);
-              }
-            } else {
-              // Error checking. If the response contains a fault, we return the fault.
-              if (keyExists(output, "Fault")) {
-                if (output.Body.Fault.faultcode.includes("RateControl")) {
-                  errorResults.message = { faultcode: "RateControl", faultstring: output.Body.Fault.faultstring };
-                } else if (output.Body.Fault.faultcode.includes("generalException")) {
-                  errorResults.message = { faultcode: "generalException", faultstring: output.Body.Fault.faultstring };
-                } else {
-                  errorResults.message = { faultcode: output.Body.Fault.faultcode, faultstring: output.Body.Fault.faultstring };
-                }
-                reject(errorResults);
-              } else {
-                // Error unknown. Reject with the response status instead. Most likely a 500 error from the server.
-                errorResults.message = response.status;
-                reject(errorResults);
-              }
-            }
-          } catch (e) {
-            errorResults.message = e;
-            reject(errorResults);
-          }
-        })
-        .catch((error) => {
-          errorResults.message = error;
-          reject(errorResults);
-        }); // catches the error and logs it
-    });
+    let output = await parseXml(await response.text());
+    // Remove unnecessary keys
+    removeKeys(output, "$");
+
+    if (!response.ok) {
+      // Local throw; if it weren't, I'd use Error or a subclass
+      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+    }
+
+    if (output?.Body?.perfmonQueryCounterDescriptionResponse?.perfmonQueryCounterDescriptionReturn) {
+      var returnResults = output.Body.perfmonQueryCounterDescriptionResponse.perfmonQueryCounterDescriptionReturn;
+      promiseResults.results = clean(returnResults);
+      return promiseResults;
+    } else {
+      // Return JSON with no results.
+      return promiseResults;
+    }
   }
 }
-
-// readChunks() reads from the provided reader and yields the results into an async iterable
-const readChunks = (reader) => {
-  return {
-    async *[Symbol.asyncIterator]() {
-      let readResult = await reader.read();
-      while (!readResult.done) {
-        yield readResult.value;
-        readResult = await reader.read();
-      }
-    },
-  };
-};
-
-const keyExists = (obj, key) => {
-  if (!obj || (typeof obj !== "object" && !Array.isArray(obj))) {
-    return false;
-  } else if (obj.hasOwnProperty(key)) {
-    return true;
-  } else if (Array.isArray(obj)) {
-    for (let i = 0; i < obj.length; i++) {
-      const result = keyExists(obj[i], key);
-      if (result) {
-        return result;
-      }
-    }
-  } else {
-    for (const k in obj) {
-      const result = keyExists(obj[k], key);
-      if (result) {
-        return result;
-      }
-    }
-  }
-
-  return false;
-};
 
 /**
  * Remove all specified keys from an object, no matter how deep they are.
@@ -1128,6 +658,44 @@ const parseXml = (xmlPart) => {
       }
     );
   });
+};
+
+const cleanResponse = (response) => {
+  var newOutput;
+  if (Array.isArray(response)) {
+    newOutput = response.map((item) => {
+      let arr = item.Name.split("\\").filter((element) => element);
+
+      let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+        return e;
+      });
+
+      return {
+        host: arr[0],
+        object: instanceArr[0],
+        instance: instanceArr[1] ? instanceArr[1] : "",
+        counter: arr[2],
+        value: item.Value,
+        cstatus: item.CStatus,
+      };
+    });
+  } else {
+    let arr = response.Name.split("\\").filter((element) => element);
+
+    let instanceArr = arr[1].split(/[()]+/).filter(function (e) {
+      return e;
+    });
+
+    newOutput = {
+      host: arr[0],
+      object: instanceArr[0],
+      instance: instanceArr[1] ? instanceArr[1] : "",
+      counter: arr[2],
+      value: response.Value,
+      cstatus: response.CStatus,
+    };
+  }
+  return clean(newOutput);
 };
 
 module.exports = perfMonService;

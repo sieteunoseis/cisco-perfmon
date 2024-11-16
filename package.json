@@ -1,11 +1,13 @@
 {
   "name": "cisco-perfmon",
-  "version": "1.4.4",
+  "version": "1.5.0",
   "description": "A library to pull Perfmon data from Cisco VOS applications via SOAP",
   "main": "main.js",
   "scripts": {
     "test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=test node ./test/tests.js",
-    "development": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=development node ./test/tests.js"
+    "development": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=development node ./test/tests.js",
+    "generate-config": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=test node ./test/generateConfig.js",
+    "rate-limit-test": "NODE_OPTIONS=--experimental-vm-modules NODE_NO_WARNINGS=1 NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=test node ./test/rateLimitTest.js"
   },
   "repository": {
     "type": "git",
@@ -32,6 +34,7 @@
   "devDependencies": {
     "dotenv": "*",
     "envalid": "^8.0.0",
-    "jsdoc-to-markdown": "^9.0.4"
+    "jsdoc-to-markdown": "^9.0.4",
+    "p-limit": "^3.1.0"
   }
 }
