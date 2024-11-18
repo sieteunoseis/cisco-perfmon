@@ -1,6 +1,6 @@
 {
   "name": "cisco-perfmon",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "A library to pull Perfmon data from Cisco VOS applications via SOAP",
   "main": "main.js",
   "scripts": {

@@ -43,8 +43,9 @@ let service = new perfMonService(
 );
 
 var counterObj = {
-  host: "cucm01-pub",
+  host: cucmServerName,
   object: "Cisco CallManager",
+  instance: "",
   counter: "CallsActive",
 };
 
@@ -63,6 +64,29 @@ service
 
 ```javascript
 npm run test
+```
+
+## Output Examples
+
+```
+  Success Example
+  {
+    host: 'cucm01-pub',
+    object: 'Cisco CallManager',
+    instance: '',
+    counter: 'PRIChannelsActive',
+    value: '0',
+    cstatus: '1'
+  }
+
+  Error Example
+  {
+    status: 500,
+    code: 'Internal Server Error',
+    host: 'cucm01-pub',
+    counter: 'SAML SSO',
+    message: 'Exceeded allowed rate for Perfmon information. Current allowed rate for perfmon information is 80 requests per minute.PerfmonService'
+  }
 ```
 
 Note: Test are using Cisco's DevNet sandbox information. Find more information here: [Cisco DevNet](https://devnetsandbox.cisco.com/)

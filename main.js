@@ -168,13 +168,14 @@ class perfMonService {
 
       if (!response.ok) {
         // Local throw; if it weren't, I'd use Error or a subclass
-        throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+        throw { status: response.status, code: http.STATUS_CODES[response.status], host: host, object: object, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
       }
 
       // Let's check if the response contains the key we are looking for. This is the return data.
       if (output?.Body?.perfmonCollectCounterDataResponse?.perfmonCollectCounterDataReturn) {
         var returnResults = output.Body.perfmonCollectCounterDataResponse.perfmonCollectCounterDataReturn;
-        return cleanResponse(returnResults);
+        promiseResults.results = cleanResponse(returnResults);
+        return promiseResults;
       } else {
         // Return JSON with no results.
         return promiseResults;
@@ -219,7 +220,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], sessionId: SessionHandle, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonCollectSessionDataResponse?.perfmonCollectSessionDataReturn) {
@@ -267,7 +268,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], host: host, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonListCounterResponse?.perfmonListCounterReturn) {
@@ -321,7 +322,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], host: host, object: object, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonListInstanceResponse?.perfmonListInstanceReturn) {
@@ -383,6 +384,7 @@ class perfMonService {
     if (output?.Body?.perfmonOpenSessionResponse?.perfmonOpenSessionReturn) {
       var returnResults = output.Body.perfmonOpenSessionResponse.perfmonOpenSessionReturn;
       promiseResults.results = clean(returnResults);
+      return promiseResults;
     } else {
       // Return JSON with no results.
       return promiseResults;
@@ -424,7 +426,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], sessionId: sessionHandle, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonCloseSessionResponse) {
@@ -478,7 +480,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], sessionId: sessionHandle, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonAddCounterResponse) {
@@ -533,7 +535,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], sessionId: sessionHandle, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonRemoveCounterResponse) {
@@ -581,7 +583,7 @@ class perfMonService {
 
     if (!response.ok) {
       // Local throw; if it weren't, I'd use Error or a subclass
-      throw { status: response.status, code: http.STATUS_CODES[response.status], message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
+      throw { status: response.status, code: http.STATUS_CODES[response.status], object: object, message: output?.Body?.Fault?.faultstring ? output.Body.Fault.faultstring : "Unknown" };
     }
 
     if (output?.Body?.perfmonQueryCounterDescriptionResponse?.perfmonQueryCounterDescriptionReturn) {

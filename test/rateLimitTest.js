@@ -140,20 +140,53 @@ const retry = (fn, retriesLeft = 1, retryInteveral = 1000, promiseDelay = 0) => 
   try {
     // Let's run the perfmon loop for each counter
     console.log("Running rate limit test. This will take a while...");
-    var promises = [];
-    for (const counter of counterArr) {
-      promises.push(objectLimit(() => retry(() => perfmon_service.collectCounterData(cucmServerName, counter), 5, 5000, 1000)));
+
+    const promises = await counterArr.map((counter) => {
+      return objectLimit(() => retry(() => perfmon_service.collectCounterData(cucmServerName, counter), 0, 0, 0));
+    });
+
+    let output = await Promise.allSettled(promises);
+    output = output.map((el) => {
+      if (el.status === "fulfilled") {
+        return el.value;
+      } else {
+        return el.reason;
+      }
+    });
+
+    output = output.flat(1);
+
+    let errors = {};
+    let success = {};
+
+    output.forEach((el) => {
+      if(el?.status > 400) {
+        errors[el.object] = (errors[el.object] || 0) + 1;
+      }else if(el?.results){
+        el.results.forEach((result) => {
+          success[result.object] = (success[result.object] || 0) + 1;
+        })
+      }
+    });
+
+    const nonPercentageObjects = output.reduce((acc, obj) => {
+      const matchingItems = obj.results.filter(item => !item?.counter.includes("%") && !item.counter?.includes("Percentage"));
+    
+      if (matchingItems.length > 0) {
+        acc.push(matchingItems);
+      }  
+      return acc.flat(1);
+    }, []);
+    
+    console.log(`Total number of objects: ${output.length}, matching non percentage objects: ${nonPercentageObjects.length}`);
+
+    var results = {
+      success: success,
+      errors: errors
     }
 
-    Promise.allSettled(promises).then((results) => {
-      results.forEach((result) => {
-        if (result.status === "fulfilled") {
-          console.log("Success:", result.value);
-        } else {
-          console.log("Failure:", JSON.stringify(result));
-        }
-      });
-    });
+    console.log(results);
+    console.log("Rate limit test completed.");
   } catch (err) {
     console.error("Error:", err);
   }
