@@ -104,13 +104,13 @@ class perfMonService {
         if (!retry) {
           return false;
         }
-        if (attempt > (process.env.PERFMON_RETRIES ? parseInt(process.env.PERFMON_RETRIES) : 3)) {
+        if (attempt > (process.env.PM_RETRY ? parseInt(process.env.PM_RETRY) : 3)) {
           return false;
         }
         // retry on any network error, or 4xx or 5xx status codes
         if (error !== null || response.status >= 400) {
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-          await delay(process.env.PERFMON_RETRY_DELAY ? parseInt(process.env.PERFMON_RETRY_DELAY) : 5000);
+          await delay(process.env.PM_RETRY_DELAY ? parseInt(process.env.PM_RETRY_DELAY) : 5000);
           return true;
         }
       },
