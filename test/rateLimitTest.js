@@ -160,30 +160,34 @@ const retry = (fn, retriesLeft = 1, retryInteveral = 1000, promiseDelay = 0) => 
     let success = {};
 
     output.forEach((el) => {
-      if(el?.status > 400) {
+      if (el?.status > 400) {
         errors[el.object] = (errors[el.object] || 0) + 1;
-      }else if(el?.results){
+      } else if (el?.results?.length > 0) {
         el.results.forEach((result) => {
           success[result.object] = (success[result.object] || 0) + 1;
-        })
+        });
       }
     });
 
     const nonPercentageObjects = output.reduce((acc, obj) => {
-      const matchingItems = obj.results.filter(item => !item?.counter.includes("%") && !item.counter?.includes("Percentage"));
-    
-      if (matchingItems.length > 0) {
-        acc.push(matchingItems);
-      }  
-      return acc.flat(1);
+      if (obj?.results?.length > 0) {
+        const matchingItems = obj.results.filter((item) => !item?.counter.includes("%") && !item.counter?.includes("Percentage"));
+
+        if (matchingItems.length > 0) {
+          acc.push(matchingItems);
+        }
+        return acc.flat(1);
+      } else {
+        return acc;
+      }
     }, []);
-    
+
     console.log(`Total number of objects: ${output.length}, matching non percentage objects: ${nonPercentageObjects.length}`);
 
     var results = {
       success: success,
-      errors: errors
-    }
+      errors: errors,
+    };
 
     console.log(results);
     console.log("Rate limit test completed.");
