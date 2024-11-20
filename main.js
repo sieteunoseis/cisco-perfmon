@@ -453,7 +453,7 @@ class perfMonService {
   async addCounter(sessionHandle, counter) {
     let options = this._OPTIONS;
     let server = this._HOST;
-    let counterStr;
+    let counterStr = '';
     // Build the counter string
     if (Array.isArray(counter)) {
       counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
@@ -507,8 +507,7 @@ class perfMonService {
   async removeCounter(sessionHandle, counter) {
     let options = this._OPTIONS;
     let server = this._HOST;
-
-    let counterStr;
+    let counterStr = '';
     if (Array.isArray(counter)) {
       counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
     } else {
