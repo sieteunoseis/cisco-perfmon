@@ -1,86 +1,104 @@
 const fetch = require("fetch-retry")(global.fetch);
-const util = require("util");
 const parseString = require("xml2js").parseString;
 const stripPrefix = require("xml2js").processors.stripPrefix;
 const http = require("http");
 
-var XML_ADD_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const escapeXml = (str) => {
+  if (typeof str !== "string") return str;
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+};
+
+const buildCounterStr = (c) => {
+  const host = escapeXml(c.host);
+  const object = escapeXml(c.object);
+  const instance = c.instance ? escapeXml(c.instance) : "";
+  const counter = c.counter ? escapeXml(c.counter) : "";
+  const objectPart = instance ? `${object}(${instance})` : object;
+  return `<soap:Counter><soap:Name>\\\\${host}\\${objectPart}\\${counter}</soap:Name></soap:Counter>`;
+};
+
+const XML_ADD_COUNTER_ENVELOPE = (sessionHandle, counters) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
  <soapenv:Header/>
  <soapenv:Body>
     <soap:perfmonAddCounter>
-       <soap:SessionHandle>%s</soap:SessionHandle>
-       <soap:ArrayOfCounter>%s</soap:ArrayOfCounter>
+       <soap:SessionHandle>${sessionHandle}</soap:SessionHandle>
+       <soap:ArrayOfCounter>${counters}</soap:ArrayOfCounter>
     </soap:perfmonAddCounter>
  </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_CLOSE_SESSION_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_CLOSE_SESSION_ENVELOPE = (sessionHandle) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonCloseSession>
-      <soap:SessionHandle>%s</soap:SessionHandle>
+      <soap:SessionHandle>${sessionHandle}</soap:SessionHandle>
    </soap:perfmonCloseSession>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_COLLECT_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_COLLECT_COUNTER_ENVELOPE = (host, object) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonCollectCounterData>
-      <soap:Host>%s</soap:Host>
-      <soap:Object>%s</soap:Object>
+      <soap:Host>${host}</soap:Host>
+      <soap:Object>${object}</soap:Object>
    </soap:perfmonCollectCounterData>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_COLLECT_SESSION_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_COLLECT_SESSION_ENVELOPE = (sessionHandle) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonCollectSessionData>
-      <soap:SessionHandle>%s</soap:SessionHandle>
+      <soap:SessionHandle>${sessionHandle}</soap:SessionHandle>
    </soap:perfmonCollectSessionData>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_LIST_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_LIST_COUNTER_ENVELOPE = (host) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonListCounter>
-      <soap:Host>%s</soap:Host>
+      <soap:Host>${host}</soap:Host>
    </soap:perfmonListCounter>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_LIST_INSTANCE_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_LIST_INSTANCE_ENVELOPE = (host, object) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonListInstance>
-      <soap:Host>%s</soap:Host>
-      <soap:Object>%s</soap:Object>
+      <soap:Host>${host}</soap:Host>
+      <soap:Object>${object}</soap:Object>
    </soap:perfmonListInstance>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_OPEN_SESSION_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_OPEN_SESSION_ENVELOPE = () => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonOpenSession/>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_QUERY_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_QUERY_COUNTER_ENVELOPE = (counter) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
-   <soap:perfmonQueryCounterDescription>%s</soap:perfmonQueryCounterDescription>
+   <soap:perfmonQueryCounterDescription>${counter}</soap:perfmonQueryCounterDescription>
 </soapenv:Body>
 </soapenv:Envelope>`;
 
-var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
+const XML_REMOVE_COUNTER_ENVELOPE = (sessionHandle, counters) => `<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:soap="http://schemas.cisco.com/ast/soap">
 <soapenv:Header/>
 <soapenv:Body>
    <soap:perfmonRemoveCounter>
-      <soap:SessionHandle>%s</soap:SessionHandle>
-      <soap:ArrayOfCounter>%s</soap:ArrayOfCounter>
+      <soap:SessionHandle>${sessionHandle}</soap:SessionHandle>
+      <soap:ArrayOfCounter>${counters}</soap:ArrayOfCounter>
    </soap:perfmonRemoveCounter>
 </soapenv:Body>
 </soapenv:Envelope>`;
@@ -99,6 +117,8 @@ var XML_REMOVE_COUNTER_ENVELOPE = `<soapenv:Envelope xmlns:soapenv="http://schem
  */
 class perfMonService {
   constructor(host, username, password, options = {}, retry = true) {
+    const RATE_LIMIT_DELAYS = [30000, 60000, 120000]; // 30s, 60s, 120s exponential backoff
+
     this._OPTIONS = {
       retryOn: async function (attempt, error, response) {
         if (!retry) {
@@ -107,6 +127,23 @@ class perfMonService {
         if (attempt > (process.env.PM_RETRY ? parseInt(process.env.PM_RETRY) : 3)) {
           return false;
         }
+
+        // Check for SOAP-level rate limiting (CUCM 80 req/min limit)
+        if (response && response.status === 500) {
+          try {
+            const clonedResponse = response.clone();
+            const body = await clonedResponse.text();
+            if (body.includes("Exceeded allowed rate for Perfmon")) {
+              const backoff = RATE_LIMIT_DELAYS[Math.min(attempt, RATE_LIMIT_DELAYS.length - 1)];
+              const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+              await delay(backoff);
+              return true;
+            }
+          } catch (e) {
+            // If we can't read the body, fall through to normal retry
+          }
+        }
+
         // retry on any network error, or 4xx or 5xx status codes
         if (error !== null || response.status >= 400) {
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -128,6 +165,28 @@ class perfMonService {
     }
 
     this._HOST = host;
+    this._COOKIE = "";
+  }
+  /**
+   * Get the current stored cookie
+   *
+   * @getCookie
+   * @memberof perfMonService
+   * @returns {string} returns the stored cookie string.
+   */
+  getCookie() {
+    return this._COOKIE;
+  }
+  /**
+   * Set a cookie to be used for subsequent requests
+   *
+   * @setCookie
+   * @memberof perfMonService
+   * @param {string} cookie - The cookie string to set.
+   */
+  setCookie(cookie) {
+    this._COOKIE = cookie;
+    this._OPTIONS.headers.Cookie = cookie;
   }
   /**
    * Post Fetch using Cisco PerfMon API
@@ -147,7 +206,7 @@ class perfMonService {
     try {
       let options = this._OPTIONS;
       let server = this._HOST;
-      let XML = util.format(XML_COLLECT_COUNTER_ENVELOPE, host, object);
+      let XML = XML_COLLECT_COUNTER_ENVELOPE(escapeXml(host), escapeXml(object));
       let soapBody = Buffer.from(XML);
       options.body = soapBody;
       options.SOAPAction = `perfmonCollectCounterData`;
@@ -161,6 +220,12 @@ class perfMonService {
       };
 
       promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
+      if (promiseResults.cookie) {
+        this.setCookie(promiseResults.cookie);
+      }
 
       let output = await parseXml(await response.text());
       // Remove unnecessary keys
@@ -198,9 +263,9 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async collectSessionData(SessionHandle) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let XML = util.format(XML_COLLECT_SESSION_ENVELOPE, SessionHandle);
+    let XML = XML_COLLECT_SESSION_ENVELOPE(SessionHandle);
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonCollectSessionData`;
@@ -213,6 +278,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -246,9 +314,9 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async listCounter(host, filtered = []) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let XML = util.format(XML_LIST_COUNTER_ENVELOPE, host);
+    let XML = XML_LIST_COUNTER_ENVELOPE(escapeXml(host));
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonListCounter`;
@@ -261,6 +329,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -299,9 +370,9 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async listInstance(host, object) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let XML = util.format(XML_LIST_INSTANCE_ENVELOPE, host, object);
+    let XML = XML_LIST_INSTANCE_ENVELOPE(escapeXml(host), escapeXml(object));
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonListInstance`;
@@ -315,6 +386,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -331,11 +405,7 @@ class perfMonService {
 
       // If the results are not an array, we make it an array.
       if (!Array.isArray(promiseResults.results)) {
-        var temp = promiseResults.results;
-        promiseResults = {
-          results: [],
-        };
-        promiseResults.results.push(temp);
+        promiseResults.results = [promiseResults.results];
       }
       return promiseResults;
     } else {
@@ -356,9 +426,9 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async openSession() {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let XML = util.format(XML_OPEN_SESSION_ENVELOPE);
+    let XML = XML_OPEN_SESSION_ENVELOPE();
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonOpenSession`;
@@ -371,6 +441,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -404,9 +477,9 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async closeSession(sessionHandle) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let XML = util.format(XML_CLOSE_SESSION_ENVELOPE, sessionHandle);
+    let XML = XML_CLOSE_SESSION_ENVELOPE(sessionHandle);
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonCloseSession`;
@@ -419,6 +492,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -451,16 +527,10 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async addCounter(sessionHandle, counter) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let counterStr = '';
-    // Build the counter string
-    if (Array.isArray(counter)) {
-      counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
-    } else {
-      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
-    }
-    let XML = util.format(XML_ADD_COUNTER_ENVELOPE, sessionHandle, counterStr);
+    let counterStr = Array.isArray(counter) ? counter.map(buildCounterStr).join("") : buildCounterStr(counter);
+    let XML = XML_ADD_COUNTER_ENVELOPE(sessionHandle, counterStr);
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonAddCounter`;
@@ -473,6 +543,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -505,16 +578,10 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async removeCounter(sessionHandle, counter) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let counterStr = '';
-    if (Array.isArray(counter)) {
-      counter.forEach((counter) => (counterStr += "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>"));
-    } else {
-      counterStr = "<soap:Counter>" + "<soap:Name>" + "\\\\" + counter.host + "\\" + (counter.instance ? `${counter.object}(${counter.instance})` : counter.object) + "\\" + counter.counter + "</soap:Name>" + "</soap:Counter>";
-    }
-
-    let XML = util.format(XML_REMOVE_COUNTER_ENVELOPE, sessionHandle, counterStr);
+    let counterStr = Array.isArray(counter) ? counter.map(buildCounterStr).join("") : buildCounterStr(counter);
+    let XML = XML_REMOVE_COUNTER_ENVELOPE(sessionHandle, counterStr);
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonRemoveCounter`;
@@ -527,6 +594,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -558,10 +628,10 @@ class perfMonService {
    * @returns {object} returns JSON via a Promise. JSON contains Session Cookie (If availible) and Results.
    */
   async queryCounterDescription(object) {
-    let options = this._OPTIONS;
+    let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
     let server = this._HOST;
-    let counterStr = "<soap:Counter>" + "\\\\" + object.host + "\\" + (object.instance ? `${object.object}(${object.instance})` : object.object) + "\\" + object.counter + "</soap:Counter>";
-    let XML = util.format(XML_QUERY_COUNTER_ENVELOPE, counterStr);
+    let counterStr = buildCounterStr(object);
+    let XML = XML_QUERY_COUNTER_ENVELOPE(counterStr);
     let soapBody = Buffer.from(XML);
     options.body = soapBody;
     options.SOAPAction = `perfmonQueryCounterDescription`;
@@ -575,6 +645,9 @@ class perfMonService {
     };
 
     promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
+    if (promiseResults.cookie) {
+      this.setCookie(promiseResults.cookie);
+    }
 
     let output = await parseXml(await response.text());
     // Remove unnecessary keys
@@ -626,18 +699,26 @@ const removeKeys = (obj, keys) => {
 };
 
 const clean = (object) => {
-  Object.entries(object).forEach(([k, v]) => {
-    if (v && typeof v === "object") {
-      clean(v);
-    }
-    if ((v && typeof v === "object" && !Object.keys(v).length) || v === null || v === undefined) {
-      if (Array.isArray(object)) {
-        object.splice(k, 1);
-      } else {
-        delete object[k];
+  if (Array.isArray(object)) {
+    for (let i = object.length - 1; i >= 0; i--) {
+      const v = object[i];
+      if (v && typeof v === "object") {
+        clean(v);
+      }
+      if ((v && typeof v === "object" && !Object.keys(v).length) || v === null || v === undefined) {
+        object.splice(i, 1);
       }
     }
-  });
+  } else {
+    Object.entries(object).forEach(([k, v]) => {
+      if (v && typeof v === "object") {
+        clean(v);
+      }
+      if ((v && typeof v === "object" && !Object.keys(v).length) || v === null || v === undefined) {
+        delete object[k];
+      }
+    });
+  }
   return object;
 };
 
