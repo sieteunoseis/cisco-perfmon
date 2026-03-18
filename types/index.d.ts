@@ -1,6 +1,10 @@
 export interface PerfmonOptions {
+  /** Max number of retries on network/HTTP errors. Defaults to PM_RETRY env var or 3. */
+  retries?: number;
+  /** Delay in ms between retries. Defaults to PM_RETRY_DELAY env var or 5000. */
+  retryDelay?: number;
   Cookie?: string;
-  [key: string]: string | undefined;
+  [key: string]: string | number | undefined;
 }
 
 export interface PerfmonResult {

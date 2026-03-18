@@ -112,19 +112,21 @@ const XML_REMOVE_COUNTER_ENVELOPE = (sessionHandle, counters) => `<soapenv:Envel
  * @param {string} host - The host to collect data from. This is usually the IP address/FQDN of the CUCM publisher.
  * @param {string} username - The username to authenticate with. This is usually an AXL user. Can leave this blank if using JESSIONSSO cookie.
  * @param {string} password - The password to authenticate with. This is usually an AXL user. Can leave this blank if using JESSIONSSO cookie.
- * @param {object} options - Additional headers to add to the request. Useful for adding cookies for SSO sessions.
+ * @param {object} options - Options object. Supports `retries` (default 3), `retryDelay` ms (default 5000), and any additional headers (e.g. cookies for SSO).
  * @returns {object} returns constructor object.
  */
 class perfMonService {
   constructor(host, username, password, options = {}, retry = true) {
     const RATE_LIMIT_DELAYS = [30000, 60000, 120000]; // 30s, 60s, 120s exponential backoff
+    const maxRetries = options.retries ?? (process.env.PM_RETRY ? parseInt(process.env.PM_RETRY) : 3);
+    const retryDelay = options.retryDelay ?? (process.env.PM_RETRY_DELAY ? parseInt(process.env.PM_RETRY_DELAY) : 5000);
 
     this._OPTIONS = {
       retryOn: async function (attempt, error, response) {
         if (!retry) {
           return false;
         }
-        if (attempt > (process.env.PM_RETRY ? parseInt(process.env.PM_RETRY) : 3)) {
+        if (attempt > maxRetries) {
           return false;
         }
 
@@ -147,7 +149,7 @@ class perfMonService {
         // retry on any network error, or 4xx or 5xx status codes
         if (error !== null || response.status >= 400) {
           const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-          await delay(process.env.PM_RETRY_DELAY ? parseInt(process.env.PM_RETRY_DELAY) : 5000);
+          await delay(retryDelay);
           return true;
         }
       },
@@ -204,7 +206,7 @@ class perfMonService {
    */
   async collectCounterData(host, object) {
     try {
-      let options = this._OPTIONS;
+      let options = { ...this._OPTIONS, headers: { ...this._OPTIONS.headers } };
       let server = this._HOST;
       let XML = XML_COLLECT_COUNTER_ENVELOPE(escapeXml(host), escapeXml(object));
       let soapBody = Buffer.from(XML);
@@ -220,9 +222,6 @@ class perfMonService {
       };
 
       promiseResults.cookie = response.headers.get("set-cookie") ? response.headers.get("set-cookie") : "";
-    if (promiseResults.cookie) {
-      this.setCookie(promiseResults.cookie);
-    }
       if (promiseResults.cookie) {
         this.setCookie(promiseResults.cookie);
       }
