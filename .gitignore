@@ -64,4 +64,7 @@ typings/
 # mac os
 .DS_Store
 
+docs/superpowers/
+
+
 /net-commander
