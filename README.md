@@ -1,16 +1,26 @@
 # cisco-perfmon
 
-Simple library to pull Perfmon stats from a Cisco CUCM via SOAP.
+A library and CLI for collecting real-time performance counters from Cisco CUCM via the PerfMon SOAP API.
 
 [![npm](https://img.shields.io/npm/v/cisco-perfmon)](https://www.npmjs.com/package/cisco-perfmon)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![skills.sh](https://img.shields.io/badge/skills.sh-cisco--perfmon--cli-blue)](https://skills.sh/skills/cisco-perfmon-cli)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?logo=buymeacoffee)](https://buymeacoffee.com/automatebldrs)
 
 Perfmon API reference: [Cisco PerfMon API Reference](https://developer.cisco.com/docs/sxml/#!perfmon-api-reference)
 
 ## Installation
 
+### As a library
+
 ```bash
 npm i --save cisco-perfmon
+```
+
+### As a CLI
+
+```bash
+npm install -g cisco-perfmon
 ```
 
 ## Requirements
@@ -23,7 +33,153 @@ If you are using self-signed certificates on Cisco VOS products you may need to 
 NODE_TLS_REJECT_UNAUTHORIZED=0
 ```
 
-## Usage
+## CLI Quick Start
+
+```bash
+# Configure a cluster
+cisco-perfmon config add lab --host cucm-pub.example.com --username admin --password secret --insecure
+
+# Verify connectivity
+cisco-perfmon doctor
+
+# List available counter objects
+cisco-perfmon list-objects
+
+# Collect CallManager counters
+cisco-perfmon collect "Cisco CallManager"
+
+# Watch counters live with sparklines
+cisco-perfmon watch "Cisco CallManager" --counter CallsActive,CallsInProgress --interval 5
+```
+
+## CLI Commands
+
+### config -- Manage cluster configurations
+
+```bash
+cisco-perfmon config add <name> --host <host> --username <user> --password <pass>
+cisco-perfmon config use <name>          # switch active cluster
+cisco-perfmon config list                # list all clusters
+cisco-perfmon config show                # show active cluster details
+cisco-perfmon config remove <name>       # remove a cluster
+cisco-perfmon config test                # test connectivity
+```
+
+Supports Secret Server integration for credential management:
+
+```bash
+cisco-perfmon config add <name> --host '<ss:ID:host>' --username '<ss:ID:username>' --password '<ss:ID:password>'
+```
+
+Or use environment variables instead of config files:
+
+```bash
+export CUCM_HOST=cucm-pub.example.com
+export CUCM_USERNAME=admin
+export CUCM_PASSWORD=secret
+```
+
+Connection precedence: CLI flags > environment variables > config file.
+
+### list-objects -- List available perfmon counter objects
+
+```bash
+cisco-perfmon list-objects                          # all objects
+cisco-perfmon list-objects --search "CallManager"   # filter by keyword
+```
+
+### list-instances -- List instances of a perfmon object
+
+```bash
+cisco-perfmon list-instances "Cisco CallManager"
+cisco-perfmon list-instances "Process" --format json
+```
+
+### describe -- Get counter descriptions
+
+```bash
+cisco-perfmon describe "Cisco CallManager"
+cisco-perfmon describe "Cisco CallManager" --counter CallsActive
+```
+
+### collect -- One-shot counter data collection
+
+```bash
+cisco-perfmon collect "Cisco CallManager"                                         # all counters
+cisco-perfmon collect "Cisco CallManager" --counter CallsActive,CallsInProgress   # specific counters
+cisco-perfmon collect "Cisco CallManager" --instance ""                            # filter by instance
+cisco-perfmon collect "Memory" --format csv > memory.csv                           # export to CSV
+```
+
+### session -- Manage perfmon polling sessions
+
+For fine-grained control over which counters to poll:
+
+```bash
+cisco-perfmon session open                                                        # get a session handle
+cisco-perfmon session add <handle> --counters '[{"host":"cucm","object":"Cisco CallManager","counter":"CallsActive"}]'
+cisco-perfmon session collect <handle>                                             # collect session data
+cisco-perfmon session remove <handle> --counters '[...]'                           # remove counters
+cisco-perfmon session close <handle>                                               # close session
+```
+
+### watch -- Continuous monitoring with live sparklines
+
+The `watch` command is the standout feature for real-time monitoring. It polls counters at a configurable interval and renders a live-updating table with sparkline visualizations showing trends over the last 12 samples.
+
+```bash
+cisco-perfmon watch "Cisco CallManager"                                           # watch all counters
+cisco-perfmon watch "Cisco CallManager" --counter CallsActive --interval 5        # 5-second polling
+cisco-perfmon watch "Processor" --counter "% CPU Time" --instance "_Total"        # CPU monitoring
+cisco-perfmon watch "Memory" --interval 30 --duration 300                         # 5-minute memory check
+```
+
+The table view displays:
+
+| Column    | Description                        |
+|-----------|------------------------------------|
+| counter   | Counter name                       |
+| instance  | Instance name                      |
+| value     | Current value                      |
+| sparkline | Visual trend (last 12 samples)     |
+| min       | Minimum observed value             |
+| max       | Maximum observed value             |
+| avg       | Average across samples             |
+
+Press `Ctrl+C` to stop. A final summary shows iteration count and total duration.
+
+### doctor -- Configuration and connectivity health check
+
+```bash
+cisco-perfmon doctor
+cisco-perfmon doctor --insecure
+```
+
+Runs checks against: active cluster config, PerfMon API connectivity, counter object availability, config file permissions, and audit trail size.
+
+## Output Formats
+
+All commands support four output formats via the `--format` flag:
+
+- `--format table` (default) -- human-readable table
+- `--format json` -- structured JSON for scripting
+- `--format toon` -- token-efficient format for AI agents
+- `--format csv` -- comma-separated values for spreadsheets
+
+## Global Flags
+
+| Flag                | Description                                    |
+|---------------------|------------------------------------------------|
+| `--host <host>`     | Override CUCM hostname                         |
+| `--username <user>` | Override CUCM username                         |
+| `--password <pass>` | Override CUCM password                         |
+| `--cluster <name>`  | Use a specific named cluster                   |
+| `--format <type>`   | Output format: table, json, toon, csv          |
+| `--insecure`        | Skip TLS certificate verification              |
+| `--no-audit`        | Disable audit logging for this command         |
+| `--debug`           | Enable debug logging                           |
+
+## Library Usage
 
 ### CommonJS
 
@@ -63,9 +219,9 @@ new perfMonService(host, username, password, options, retry)
 
 | Parameter  | Type    | Default | Description                                      |
 |------------|---------|---------|--------------------------------------------------|
-| `host`     | string  | —       | CUCM IP or FQDN                                  |
-| `username` | string  | —       | AXL/admin username (omit if using SSO cookie)    |
-| `password` | string  | —       | Password (omit if using SSO cookie)              |
+| `host`     | string  | --      | CUCM IP or FQDN                                  |
+| `username` | string  | --      | AXL/admin username (omit if using SSO cookie)    |
+| `password` | string  | --      | Password (omit if using SSO cookie)              |
 | `options`  | object  | `{}`    | See options below                                |
 | `retry`    | boolean | `true`  | Enable/disable automatic retry                   |
 
@@ -75,8 +231,8 @@ new perfMonService(host, username, password, options, retry)
 |--------------|--------|---------|-----------------------------------------------------------------------|
 | `retries`    | number | `3`     | Max retry attempts. Falls back to `PM_RETRY` env var.                 |
 | `retryDelay` | number | `5000`  | Delay in ms between retries. Falls back to `PM_RETRY_DELAY` env var.  |
-| `Cookie`     | string | —       | Session cookie for SSO authentication                                 |
-| _any header_ | string | —       | Additional HTTP headers merged into every request                     |
+| `Cookie`     | string | --      | Session cookie for SSO authentication                                 |
+| _any header_ | string | --      | Additional HTTP headers merged into every request                     |
 
 ```javascript
 // Custom retry settings
@@ -93,7 +249,7 @@ const service = new perfMonService("10.10.20.1", "", "", {
 
 ## Rate Limiting
 
-CUCM enforces an 80 requests/minute limit on Perfmon. This library automatically detects that SOAP fault and applies exponential backoff (30s → 60s → 120s) before retrying.
+CUCM enforces an 80 requests/minute limit on Perfmon. This library automatically detects that SOAP fault and applies exponential backoff (30s -> 60s -> 120s) before retrying.
 
 ## Cookie Management
 
@@ -211,10 +367,27 @@ These are supported as fallbacks when constructor options are not provided:
 | `PM_RETRY`        | Max retry attempts                   | `3`     |
 | `PM_RETRY_DELAY`  | Delay in ms between retries          | `5000`  |
 
-## Examples
+## Related Tools
+
+| Package | Description |
+|---------|-------------|
+| [cisco-axl](https://www.npmjs.com/package/cisco-axl) | Cisco CUCM AXL API library and CLI |
+| [cisco-risport](https://www.npmjs.com/package/cisco-risport) | Cisco CUCM RisPort70 real-time device status |
+| [cisco-ise](https://www.npmjs.com/package/cisco-ise) | Cisco ISE ERS API library and CLI |
+
+## Testing
 
 ```bash
-npm run test
+npm test                  # run unit tests
+npm run test:integration  # run integration tests (requires CUCM)
 ```
 
-Tests use [Cisco DevNet Sandbox](https://devnetsandbox.cisco.com/) credentials.
+## Funding
+
+If you find this tool useful, consider supporting development:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?logo=buymeacoffee&style=for-the-badge)](https://buymeacoffee.com/automatebldrs)
+
+## License
+
+MIT
