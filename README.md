@@ -1,26 +1,38 @@
 # cisco-perfmon
 
-A library and CLI for collecting real-time performance counters from Cisco CUCM via the PerfMon SOAP API.
-
-[![npm](https://img.shields.io/npm/v/cisco-perfmon)](https://www.npmjs.com/package/cisco-perfmon)
+[![npm version](https://img.shields.io/npm/v/cisco-perfmon.svg)](https://www.npmjs.com/package/cisco-perfmon)
+[![CI](https://github.com/sieteunoseis/cisco-perfmon/actions/workflows/release.yml/badge.svg)](https://github.com/sieteunoseis/cisco-perfmon/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![skills.sh](https://img.shields.io/badge/skills.sh-cisco--perfmon--cli-blue)](https://skills.sh/skills/cisco-perfmon-cli)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?logo=buymeacoffee)](https://buymeacoffee.com/automatebldrs)
+[![Node.js Version](https://img.shields.io/node/v/cisco-perfmon.svg)](https://nodejs.org)
+[![Skills](https://img.shields.io/badge/skills.sh-cisco--perfmon--cli-blue)](https://skills.sh/sieteunoseis/cisco-perfmon)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-orange?logo=buy-me-a-coffee)](https://buymeacoffee.com/automatebldrs)
+
+A library and CLI for collecting real-time performance counters from Cisco CUCM via the PerfMon SOAP API.
 
 Perfmon API reference: [Cisco PerfMon API Reference](https://developer.cisco.com/docs/sxml/#!perfmon-api-reference)
 
 ## Installation
 
-### As a library
-
 ```bash
-npm i --save cisco-perfmon
+npm install cisco-perfmon
 ```
 
-### As a CLI
+### Global CLI install
 
 ```bash
 npm install -g cisco-perfmon
+```
+
+Or run without installing:
+
+```bash
+npx cisco-perfmon --help
+```
+
+### AI Agent Skills
+
+```bash
+npx skills add sieteunoseis/cisco-perfmon
 ```
 
 ## Requirements
@@ -33,7 +45,7 @@ If you are using self-signed certificates on Cisco VOS products you may need to 
 NODE_TLS_REJECT_UNAUTHORIZED=0
 ```
 
-## CLI Quick Start
+## Quick Start
 
 ```bash
 # Configure a cluster
@@ -52,9 +64,7 @@ cisco-perfmon collect "Cisco CallManager"
 cisco-perfmon watch "Cisco CallManager" --counter CallsActive,CallsInProgress --interval 5
 ```
 
-## CLI Commands
-
-### config -- Manage cluster configurations
+## Configuration
 
 ```bash
 cisco-perfmon config add <name> --host <host> --username <user> --password <pass>
@@ -80,6 +90,8 @@ export CUCM_PASSWORD=secret
 ```
 
 Connection precedence: CLI flags > environment variables > config file.
+
+## CLI Commands
 
 ### list-objects -- List available perfmon counter objects
 
@@ -136,15 +148,15 @@ cisco-perfmon watch "Memory" --interval 30 --duration 300                       
 
 The table view displays:
 
-| Column    | Description                        |
-|-----------|------------------------------------|
-| counter   | Counter name                       |
-| instance  | Instance name                      |
-| value     | Current value                      |
-| sparkline | Visual trend (last 12 samples)     |
-| min       | Minimum observed value             |
-| max       | Maximum observed value             |
-| avg       | Average across samples             |
+| Column    | Description                    |
+| --------- | ------------------------------ |
+| counter   | Counter name                   |
+| instance  | Instance name                  |
+| value     | Current value                  |
+| sparkline | Visual trend (last 12 samples) |
+| min       | Minimum observed value         |
+| max       | Maximum observed value         |
+| avg       | Average across samples         |
 
 Press `Ctrl+C` to stop. A final summary shows iteration count and total duration.
 
@@ -157,6 +169,19 @@ cisco-perfmon doctor --insecure
 
 Runs checks against: active cluster config, PerfMon API connectivity, counter object availability, config file permissions, and audit trail size.
 
+## Global Flags
+
+| Flag                | Description                            |
+| ------------------- | -------------------------------------- |
+| `--format <type>`   | Output format: table, json, toon, csv  |
+| `--host <host>`     | Override CUCM hostname                 |
+| `--username <user>` | Override CUCM username                 |
+| `--password <pass>` | Override CUCM password                 |
+| `--cluster <name>`  | Use a specific named cluster           |
+| `--insecure`        | Skip TLS certificate verification      |
+| `--no-audit`        | Disable audit logging for this command |
+| `--debug`           | Enable debug logging                   |
+
 ## Output Formats
 
 All commands support four output formats via the `--format` flag:
@@ -166,34 +191,59 @@ All commands support four output formats via the `--format` flag:
 - `--format toon` -- token-efficient format for AI agents
 - `--format csv` -- comma-separated values for spreadsheets
 
-## Global Flags
+## Audit Trail
 
-| Flag                | Description                                    |
-|---------------------|------------------------------------------------|
-| `--host <host>`     | Override CUCM hostname                         |
-| `--username <user>` | Override CUCM username                         |
-| `--password <pass>` | Override CUCM password                         |
-| `--cluster <name>`  | Use a specific named cluster                   |
-| `--format <type>`   | Output format: table, json, toon, csv          |
-| `--insecure`        | Skip TLS certificate verification              |
-| `--no-audit`        | Disable audit logging for this command         |
-| `--debug`           | Enable debug logging                           |
+All operations are logged to `~/.cisco-perfmon/audit.jsonl` (JSONL format). Credentials are never logged. Use `--no-audit` to skip.
 
-## Library Usage
+## Library API
 
-### CommonJS
+### Setup
 
 ```javascript
+// CommonJS
 const perfMonService = require("cisco-perfmon");
-```
 
-### ESM
-
-```javascript
+// ESM
 import perfMonService from "cisco-perfmon";
 ```
 
-### Basic example
+### Constructor
+
+```javascript
+new perfMonService(host, username, password, options, retry);
+```
+
+| Parameter  | Type    | Default | Description                                   |
+| ---------- | ------- | ------- | --------------------------------------------- |
+| `host`     | string  | --      | CUCM IP or FQDN                               |
+| `username` | string  | --      | AXL/admin username (omit if using SSO cookie) |
+| `password` | string  | --      | Password (omit if using SSO cookie)           |
+| `options`  | object  | `{}`    | See options below                             |
+| `retry`    | boolean | `true`  | Enable/disable automatic retry                |
+
+#### Options
+
+| Option       | Type   | Default | Description                                                          |
+| ------------ | ------ | ------- | -------------------------------------------------------------------- |
+| `retries`    | number | `3`     | Max retry attempts. Falls back to `PM_RETRY` env var.                |
+| `retryDelay` | number | `5000`  | Delay in ms between retries. Falls back to `PM_RETRY_DELAY` env var. |
+| `Cookie`     | string | --      | Session cookie for SSO authentication                                |
+| _any header_ | string | --      | Additional HTTP headers merged into every request                    |
+
+```javascript
+// Custom retry settings
+const service = new perfMonService("10.10.20.1", "admin", "pass", {
+  retries: 5,
+  retryDelay: 2000,
+});
+
+// SSO cookie auth (no username/password needed)
+const service = new perfMonService("10.10.20.1", "", "", {
+  Cookie: "JSESSIONIDSSO=abc123",
+});
+```
+
+### Basic Example
 
 ```javascript
 const perfMonService = require("cisco-perfmon");
@@ -211,70 +261,21 @@ const result = await service.collectCounterData(counter.host, counter.object);
 console.log(result.results);
 ```
 
-## Constructor
+### Methods
 
-```javascript
-new perfMonService(host, username, password, options, retry)
-```
-
-| Parameter  | Type    | Default | Description                                      |
-|------------|---------|---------|--------------------------------------------------|
-| `host`     | string  | --      | CUCM IP or FQDN                                  |
-| `username` | string  | --      | AXL/admin username (omit if using SSO cookie)    |
-| `password` | string  | --      | Password (omit if using SSO cookie)              |
-| `options`  | object  | `{}`    | See options below                                |
-| `retry`    | boolean | `true`  | Enable/disable automatic retry                   |
-
-### Options
-
-| Option       | Type   | Default | Description                                                           |
-|--------------|--------|---------|-----------------------------------------------------------------------|
-| `retries`    | number | `3`     | Max retry attempts. Falls back to `PM_RETRY` env var.                 |
-| `retryDelay` | number | `5000`  | Delay in ms between retries. Falls back to `PM_RETRY_DELAY` env var.  |
-| `Cookie`     | string | --      | Session cookie for SSO authentication                                 |
-| _any header_ | string | --      | Additional HTTP headers merged into every request                     |
-
-```javascript
-// Custom retry settings
-const service = new perfMonService("10.10.20.1", "admin", "pass", {
-  retries: 5,
-  retryDelay: 2000,
-});
-
-// SSO cookie auth (no username/password needed)
-const service = new perfMonService("10.10.20.1", "", "", {
-  Cookie: "JSESSIONIDSSO=abc123",
-});
-```
-
-## Rate Limiting
-
-CUCM enforces an 80 requests/minute limit on Perfmon. This library automatically detects that SOAP fault and applies exponential backoff (30s -> 60s -> 120s) before retrying.
-
-## Cookie Management
-
-Cookies returned by CUCM are automatically captured and reused for subsequent requests.
-
-```javascript
-// Get the current stored cookie
-const cookie = service.getCookie();
-
-// Set a cookie manually (e.g. from a prior session)
-service.setCookie("JSESSIONIDSSO=abc123");
-```
-
-## Methods
-
-### `collectCounterData(host, object)`
+#### `collectCounterData(host, object)`
 
 Collect counter data without a session.
 
 ```javascript
-const result = await service.collectCounterData("cucm01-pub", "Cisco CallManager");
+const result = await service.collectCounterData(
+  "cucm01-pub",
+  "Cisco CallManager",
+);
 // result.results => [{ host, object, instance, counter, value, cstatus }, ...]
 ```
 
-### `collectSessionData(sessionHandle)`
+#### `collectSessionData(sessionHandle)`
 
 Collect data for an open session.
 
@@ -282,16 +283,19 @@ Collect data for an open session.
 const result = await service.collectSessionData(sessionHandle);
 ```
 
-### `listCounter(host, filtered?)`
+#### `listCounter(host, filtered?)`
 
 List all available counters on a host, with optional name filtering.
 
 ```javascript
 const result = await service.listCounter("cucm01-pub");
-const filtered = await service.listCounter("cucm01-pub", ["Cisco CallManager", "Memory"]);
+const filtered = await service.listCounter("cucm01-pub", [
+  "Cisco CallManager",
+  "Memory",
+]);
 ```
 
-### `listInstance(host, object)`
+#### `listInstance(host, object)`
 
 List instances of a perfmon object.
 
@@ -299,7 +303,7 @@ List instances of a perfmon object.
 const result = await service.listInstance("cucm01-pub", "Cisco CallManager");
 ```
 
-### `openSession()` / `closeSession(sessionHandle)`
+#### `openSession()` / `closeSession(sessionHandle)`
 
 Open and close a polling session.
 
@@ -310,7 +314,7 @@ const sessionHandle = opened.results;
 await service.closeSession(sessionHandle);
 ```
 
-### `addCounter(sessionHandle, counter)` / `removeCounter(sessionHandle, counter)`
+#### `addCounter(sessionHandle, counter)` / `removeCounter(sessionHandle, counter)`
 
 Add or remove counters from an open session. Accepts a single counter object or an array.
 
@@ -323,7 +327,7 @@ await service.addCounter(sessionHandle, {
 });
 ```
 
-### `queryCounterDescription(counter)`
+#### `queryCounterDescription(counter)`
 
 Get the description of a counter.
 
@@ -336,7 +340,23 @@ const result = await service.queryCounterDescription({
 });
 ```
 
-## Output Examples
+### Rate Limiting
+
+CUCM enforces an 80 requests/minute limit on Perfmon. This library automatically detects that SOAP fault and applies exponential backoff (30s -> 60s -> 120s) before retrying.
+
+### Cookie Management
+
+Cookies returned by CUCM are automatically captured and reused for subsequent requests.
+
+```javascript
+// Get the current stored cookie
+const cookie = service.getCookie();
+
+// Set a cookie manually (e.g. from a prior session)
+service.setCookie("JSESSIONIDSSO=abc123");
+```
+
+### Output Examples
 
 ```javascript
 // Success
@@ -358,22 +378,22 @@ const result = await service.queryCounterDescription({
 }
 ```
 
-## Environment Variables
+### Environment Variables
 
 These are supported as fallbacks when constructor options are not provided:
 
-| Variable          | Description                          | Default |
-|-------------------|--------------------------------------|---------|
-| `PM_RETRY`        | Max retry attempts                   | `3`     |
-| `PM_RETRY_DELAY`  | Delay in ms between retries          | `5000`  |
+| Variable         | Description                 | Default |
+| ---------------- | --------------------------- | ------- |
+| `PM_RETRY`       | Max retry attempts          | `3`     |
+| `PM_RETRY_DELAY` | Delay in ms between retries | `5000`  |
 
 ## Related Tools
 
-| Package | Description |
-|---------|-------------|
-| [cisco-axl](https://www.npmjs.com/package/cisco-axl) | Cisco CUCM AXL API library and CLI |
+| Package                                                      | Description                                  |
+| ------------------------------------------------------------ | -------------------------------------------- |
+| [cisco-axl](https://www.npmjs.com/package/cisco-axl)         | Cisco CUCM AXL API library and CLI           |
 | [cisco-risport](https://www.npmjs.com/package/cisco-risport) | Cisco CUCM RisPort70 real-time device status |
-| [cisco-ise](https://www.npmjs.com/package/cisco-ise) | Cisco ISE ERS API library and CLI |
+| [cisco-ise](https://www.npmjs.com/package/cisco-ise)         | Cisco ISE ERS API library and CLI            |
 
 ## Testing
 
@@ -382,11 +402,11 @@ npm test                  # run unit tests
 npm run test:integration  # run integration tests (requires CUCM)
 ```
 
-## Funding
+## Giving Back
 
-If you find this tool useful, consider supporting development:
+If you found this helpful, consider:
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-support-yellow?logo=buymeacoffee&style=for-the-badge)](https://buymeacoffee.com/automatebldrs)
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/automatebldrs)
 
 ## License
 
