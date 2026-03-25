@@ -13,10 +13,11 @@ CLI for collecting Cisco CUCM real-time performance counters via the PerfMon SOA
 
 ## Setup
 
-Configure a cluster (one-time):
+Configure a cluster (one-time, interactive prompt for password — never pass credentials on the command line):
 
 ```bash
-cisco-perfmon config add <name> --host <host> --username <user> --password <pass> --insecure
+cisco-perfmon config add <name> --host <host> --username <user> --insecure
+# You will be prompted securely for the password
 cisco-perfmon config test
 ```
 
@@ -26,7 +27,7 @@ For Secret Server integration:
 cisco-perfmon config add <name> --host '<ss:ID:host>' --username '<ss:ID:username>' --password '<ss:ID:password>' --insecure
 ```
 
-Or use environment variables:
+Or use environment variables (set via your shell profile, a `.env` file, or a secrets manager — never hardcode credentials):
 
 ```bash
 export CUCM_HOST=<host>
@@ -39,7 +40,8 @@ export CUCM_PASSWORD=<pass>
 ### config -- Manage cluster configurations
 
 ```bash
-cisco-perfmon config add <name> --host <host> --username <user> --password <pass>
+cisco-perfmon config add <name> --host <host> --username <user>
+# You will be prompted securely for the password
 cisco-perfmon config use <name>
 cisco-perfmon config list
 cisco-perfmon config show
